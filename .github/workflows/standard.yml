@@ -1,0 +1,22 @@
+name: integration
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches-ignore:
+      - "release-please--*"
+  release:
+    types:
+      - published
+
+jobs:
+  releasing:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: releasing
+        uses: Foxon-Consulting/github-actions/delivery/common/release-please@main
+        with:
+          RELEASE_PLEASE_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}

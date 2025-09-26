@@ -1,0 +1,14 @@
+version: '3'
+
+services:
+  interflow-frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: "interflow-frontend"
+    ports:
+      - "3000:3000"
+    container_name: "interflow-frontend"
+    restart: unless-stopped
+    environment:
+      - INTERFLOW_BACKEND_API_URL=http://192.168.1.172:5000

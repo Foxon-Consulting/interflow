@@ -1,0 +1,98 @@
+flowchart-diagram
+
+title Algorithme de génération de commandes
+
+Besoin [shape: document, icon: file-text, label: Besoin]
+
+// Stocks [icon: document, icon: file-text]
+en_stock [shape: diamond, icon: box, label: En stock ?]
+
+// Commandes directes [icon: document, icon: file-text]
+commande_directe [shape: diamond, icon: box, label: Couvert par commandes directes ?]
+
+commande_prestataire [shape: diamond, icon: box, label: Couvert par commandes aux prestataires ?]
+
+Besoin Couvert [shape: circle, icon: box, color: green]
+
+Generation commande [icon: shopping-cart]
+
+Besoin -> en_stock
+en_stock -> commande_directe: Non
+commande_directe -> commande_prestataire: Non
+commande_prestataire -> Generation commande: Non
+
+en_stock -> Besoin Couvert: Oui
+commande_directe -> Besoin Couvert: Oui
+commande_prestataire -> Besoin Couvert: Oui
+
+
+
+
+// Commandes aux prestataires [icon: document, icon: file-text]
+// Couvert par commandes aux prestataires ? [shape: diamond, icon: box]
+
+
+
+
+// BO -> Besoin
+// Stocks -> En stock ?
+// Commandes directes -> Couvert par commandes directes ?
+// Commandes aux prestataires -> Couvert par commandes aux prestataires ?
+
+
+// Besoin -> En stock ?
+
+// En stock ? -> Besoin Couvert: Oui
+// Couvert par commandes directes ? -> Besoin Couvert: Oui
+// Couvert par commandes aux prestataires ? -> Besoin Couvert: Oui
+
+// En stock ? -> Couvert par commandes directes: Non
+// Couvert par commandes directes ? -> Couvert par commandes aux prestataires: Non
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// // Nodes and groups
+// Issue type? [shape: oval, icon: file-text]
+
+// BugPath [color: red] {
+//   Bug [icon: bug, color: red]
+//   Duplicate? [shape: diamond, icon: copy]
+//   Mark duplicate [shape: oval, icon: copy]
+//   Has repro? [shape: diamond, icon: repeat]
+//   Ask for repro [shape: oval, icon: repeat]
+// }
+
+// FeaturePath [color: green] {
+//   Feature [icon: zap, color: green]
+//   Well specced? [shape: diamond, icon: check-square]
+//   Can be package? [shape: diamond, icon: package]
+//   Define as package [shape: oval, icon: package]
+// }
+
+// Issue ready to claim [shape: oval, icon: send]
+
+// // Relationships
+// Issue type? > Bug
+// Bug > Duplicate?
+// Duplicate? > Mark duplicate: Yes
+// Duplicate? > Has repro?: No
+// Has repro? > Issue ready to claim: Yes
+// Has repro? > Ask for repro: No
+// Issue type? > Feature
+// Feature > Can be package?
+// Can be package? > Well specced?: No
+// Can be package? > Define as package: Yes
+// Well specced? > Issue ready to claim: Yes

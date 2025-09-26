@@ -1,0 +1,45 @@
+# Dépendances
+node_modules
+npm-debug.log*
+
+# Fichiers de build Next.js
+.next
+out
+
+# Fichiers de développement
+.env*.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Fichiers système
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+docs
+*.md
+
+# Fichiers de configuration de développement
+.vscode
+.eslintrc*
+.prettierrc*
+
+# Fichiers temporaires
+temp
+old
+examples
+inputs
+terraform
+
+# Fichiers de build TypeScript
+*.tsbuildinfo
+
+# Docker
+Dockerfile
+.dockerignore
