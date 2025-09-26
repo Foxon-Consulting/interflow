@@ -35,7 +35,7 @@ COPY interflow-backend/pyproject.toml interflow-backend/README.md ./
 COPY interflow-backend/src/ ./src/
 
 # Installation des dépendances de build et construction du wheel
-RUN pip install --no-cache-dir build wheel setuptools
+RUN pip install --no-cache-dir .[ci]
 RUN python -m build --wheel
 
 # Étape 3: Image finale avec Alpine 3.20
@@ -43,12 +43,12 @@ FROM alpine:3.20
 
 # Installer les dépendances nécessaires
 RUN apk add --no-cache \
-    python3 \
-    py3-pip \
-    nodejs \
-    npm \
-    nginx \
-    supervisor \
+    python3=3.12.11-r0 \
+    py3-pip=24.0-r2 \
+    nodejs=20.15.1-r0 \
+    npm=10.9.1-r0 \
+    nginx=1.26.3-r0 \
+    supervisor=4.2.5-r5 \
     && rm -rf /var/cache/apk/*
 
 # Créer les répertoires nécessaires
