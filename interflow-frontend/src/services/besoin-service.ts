@@ -3,7 +3,7 @@ import { MatiereModel } from "@/model/matiere";
 
 /**
  * Service pour gérer les opérations liées aux besoins
- * Connecté au backend FastAPI sur localhost:5000
+ * Utilise les API Routes Next.js pour la communication interne
  */
 
 import { API_BASE_URL, API_ENDPOINTS } from '@/config/api';
@@ -24,7 +24,7 @@ export async function fetchAllBesoinData(): Promise<BesoinModel[]> {
     
     const data = await handleApiResponse(response);
     
-    // Gérer le format de réponse spécifique du backend
+    // Gérer le format de réponse de l'API
     let besoinsData: Record<string, unknown>[] = [];
     if (data.besoins) {
       besoinsData = data.besoins;

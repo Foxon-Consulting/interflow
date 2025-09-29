@@ -2,7 +2,7 @@ import { MatiereModel, Matiere } from "@/model/matiere";
 
 /**
  * Service pour gérer les opérations liées aux matières
- * Connecté au backend FastAPI sur localhost:5000
+ * Utilise les API Routes Next.js pour la communication interne
  */
 
 import { API_BASE_URL, API_ENDPOINTS } from '@/config/api';
@@ -28,7 +28,7 @@ export async function fetchAllMatiereData(): Promise<MatiereModel[]> {
     // Suppression du log de données récupérées
     // console.log("✅ [MATIERE-SERVICE] Données récupérées:", data);
     
-    // Gérer le format de réponse spécifique du backend
+    // Gérer le format de réponse de l'API
     let matieresData: Record<string, unknown>[] = [];
     if (data.matieres) {
       matieresData = data.matieres;

@@ -1,6 +1,6 @@
 # Modèles TypeScript
 
-Ce dossier contient les modèles TypeScript correspondants aux modèles Python de l'API FastAPI.
+Ce dossier contient les modèles TypeScript correspondants aux modèles Python de l'API.
 
 ## Structure
 
