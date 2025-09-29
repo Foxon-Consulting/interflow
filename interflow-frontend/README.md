@@ -51,7 +51,7 @@ npm install
 3. **Configurez l'environnement**
 ```bash
 # Créez un fichier .env.local
-echo "NEXT_PUBLIC_API_URL=http://localhost:5000" > .env.local
+echo "NEXT_PUBLIC_API_URL=http://localhost:5000" > .env.local  # Développement local uniquement
 ```
 
 4. **Lancez l'application**
@@ -140,7 +140,7 @@ docker-compose up -d
 
 ### Variables d'environnement
 ```bash
-NEXT_PUBLIC_API_URL=http://localhost:5000  # URL de l'API backend
+NEXT_PUBLIC_API_URL=http://localhost:5000  # URL directe pour le développement local
 NODE_ENV=production                        # Environnement
 ```
 
@@ -159,17 +159,26 @@ npm run type-check   # Vérification TypeScript
 L'application suit une architecture en couches :
 
 - **Pages** - Interface utilisateur et logique d'affichage
-- **Services** - Communication avec l'API backend
+- **Services** - Communication avec l'API via routes Next.js
 - **Modèles** - Types TypeScript et validation
 - **Hooks** - Logique métier réutilisable
 - **Composants** - UI modulaire et réutilisable
 
 ### Flux de données
 ```
-Pages → Services → API Backend
+Pages → Services → API Routes Next.js → Backend Python (interne)
   ↓        ↓
 React Query Cache ← Modèles TypeScript
 ```
+
+### API Routes (Architecture SSR)
+
+L'application utilise les **API Routes Next.js** pour une communication sécurisée :
+
+- **Route catch-all** : `/api/[...path]/route.ts` proxifie tous les endpoints
+- **Communication interne** : Next.js ↔ Backend Python (127.0.0.1:5000)
+- **Pas d'exposition** : Le backend n'est jamais exposé à l'extérieur
+- **Performance** : Tout en mémoire dans le même container
 
 ## 🤝 Contribution
 

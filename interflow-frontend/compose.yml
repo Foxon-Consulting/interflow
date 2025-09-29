@@ -11,4 +11,4 @@ services:
     container_name: "interflow-frontend"
     restart: unless-stopped
     environment:
-      - INTERFLOW_BACKEND_API_URL=http://192.168.1.172:5000
+      # Plus besoin d'URL backend : communication via API Routes Next.js

@@ -212,8 +212,8 @@ export default function CreateRappatriementPage() {
         remarques: formData.remarques || null
       };
 
-      // Log du JSON envoyé au backend
-      console.log("🔍 [CREATE-RAPPATRIEMENT] JSON envoyé au backend:", JSON.stringify(nouveauRappatriement, null, 2));
+      // Log du JSON envoyé à l'API
+      console.log("🔍 [CREATE-RAPPATRIEMENT] JSON envoyé à l'API:", JSON.stringify(nouveauRappatriement, null, 2));
 
       // Appeler le service de création
       const rapatriementCree = await createRappatriement(nouveauRappatriement);

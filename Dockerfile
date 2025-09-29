@@ -15,10 +15,6 @@ COPY interflow-frontend/ .
 # Corriger les permissions des exécutables npm
 RUN chmod +x node_modules/.bin/*
 
-
-# Définir la variable d'environnement pour le build Next.js
-ENV NEXT_PUBLIC_API_URL=http://localhost:8050
-
 # Construire l'application Next.js
 RUN npm run build -- --no-lint
 
@@ -66,7 +62,10 @@ COPY --from=frontend-builder /app/frontend/.next/standalone ./
 COPY --from=frontend-builder /app/frontend/.next/static ./.next/static
 COPY --from=frontend-builder /app/frontend/public ./public
 
+# Créer tous les répertoires nginx nécessaires
 RUN mkdir -p /var/log/nginx /var/lib/nginx/tmp /run/nginx
+# Créer la structure complète de logs qui sera partagée avec l'hôte
+RUN mkdir -p /var/log/nginx /var/log/supervisor
 COPY conf/nginx.conf /etc/nginx/nginx.conf
 
 # Créer le répertoire de configuration supervisor
@@ -76,12 +75,16 @@ COPY conf/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 # Créer le répertoire data et copier les données du backend
 RUN mkdir -p /app/data
 
-# Créer un utilisateur non-root pour la sécurité
-RUN addgroup -g 1001 -S appgroup && \
-    adduser -u 1001 -S appuser -G appgroup
+# Configuration spécifique Podman : utiliser des UIDs/GIDs compatibles rootless
+# Utiliser l'UID 1000 qui correspond souvent à l'utilisateur hôte
+RUN addgroup -g 1000 -S appgroup && \
+    adduser -u 1000 -S appuser -G appgroup
 
-# Changer les permissions (inclure le répertoire data)
-RUN chown -R appuser:appgroup /app
+# Changer les permissions pour /app et /var/log (pour les logs partagés)
+# Podman : s'assurer que les volumes sont accessibles
+RUN chown -R appuser:appgroup /app /var/log
+# S'assurer que les répertoires de logs sont accessibles en écriture
+RUN chmod -R 755 /var/log
 
 # Exposer le port
 EXPOSE 80
@@ -91,7 +94,7 @@ ENV API_HOST=0.0.0.0
 ENV API_PORT=5000
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
-# ENV NEXT_PUBLIC_API_URL=http://localhost:5000
+# NEXT_PUBLIC_API_URL non défini pour forcer l'utilisation des API Routes Next.js
 
 # Commande de démarrage
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

@@ -2,7 +2,7 @@ import { ReceptionModel, Reception, TypeReception, EtatReception } from "@/model
 
 /**
  * Service pour gérer les opérations liées aux réceptions
- * Connecté au backend FastAPI sur localhost:5000
+ * Utilise les API Routes Next.js pour la communication interne
  */
 
 import { API_BASE_URL, API_ENDPOINTS } from '@/config/api';
@@ -22,7 +22,7 @@ export async function fetchAllReceptionData(): Promise<ReceptionModel[]> {
     const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.RECEPTIONS}`);
     const data = await handleApiResponse(response);
     
-    // Gérer le format de réponse spécifique du backend
+    // Gérer le format de réponse de l'API
     let receptionsData: Record<string, unknown>[] = [];
     if (data.receptions) {
       receptionsData = data.receptions;
