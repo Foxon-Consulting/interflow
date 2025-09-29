@@ -7,8 +7,7 @@ services:
       dockerfile: Dockerfile
     container_name: interflow-app
     ports:
-      - "8080:80"    # Frontend via nginx
-      - "8050:5000"  # Backend direct
+      - "8080:80"    # Frontend et API via nginx
     environment:
       - API_HOST=0.0.0.0
       - API_PORT=5000
@@ -17,3 +16,6 @@ services:
     volumes:
       # Mapping du répertoire data pour le backend
       - ./data:/app/data
+      # Mapping du répertoire logs pour accéder aux logs depuis l'hôte
+      - ./logs:/var/log
+      

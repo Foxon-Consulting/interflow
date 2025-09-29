@@ -1,7 +1,15 @@
 // Configuration de l'API
-// Log value of NEXT_PUBLIC_API_URL
-console.log('NEXT_PUBLIC_API_URL :', process.env.NEXT_PUBLIC_API_URL);
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+// Utilise les API Routes Next.js qui proxifient vers le backend en interne
+// En développement, peut utiliser l'URL directe du backend si définie
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
+
+// Log pour débuguer
+console.log('🔍 API Configuration:', {
+  NODE_ENV: process.env.NODE_ENV,
+  NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+  API_BASE_URL,
+  isServer: typeof window === 'undefined'
+});
 
 // Configuration des endpoints
 export const API_ENDPOINTS = {
