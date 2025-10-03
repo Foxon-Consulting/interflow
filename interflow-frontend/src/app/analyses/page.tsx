@@ -5,19 +5,40 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
-import { useState, useEffect } from "react"
-import { AnalyseService, AnalyseData, AnalyseResult } from "@/services/analyse-service"
+import { useState, useEffect, useCallback, useMemo } from "react"
+import { AnalyseService } from "@/services/analyse-service"
+
+// Interfaces pour les données d'analyse
+interface AnalyseData {
+  comparaison: string;
+  besoin: number;
+  stocks_internes: number;
+  receptions: number;
+  rappatriements: number;
+  [key: string]: number | string;
+}
+
+// Interface pour le besoin chargé
+interface BesoinCharge {
+  id: number;
+  code_mp: string;
+  nom_matiere: string;
+  quantite: number;
+  echeance: string;
+  etat: string;
+  lot: string | null;
+}
 import { CheckCircle, XCircle, AlertTriangle } from "lucide-react"
   
 export default function AnalysesPage() {
   // Données par défaut
-  const defaultData: AnalyseData[] = [
-      { comparaison: "besoin", besoin: 10, stocks_internes: 0, receptions: 0, rappatriements: 0 },
-  { comparaison: "stock", besoin: 0, stocks_internes: 10, receptions: 5, rappatriements: 10, EXMC: 300, EXMP: 200 },
-  ]
+  const defaultData: AnalyseData[] = useMemo(() => [
+      { comparaison: "besoin", besoin: 0, stocks_internes: 0, receptions: 0, rappatriements: 0 },
+  { comparaison: "stock", besoin: 0, stocks_internes: 0, receptions: 0, rappatriements: 0, EXMC: 0, EXMP: 0 },
+  ] as AnalyseData[], [])
 
   // Configuration de base
-  const baseConfig: { [key: string]: { label: string; color: string } } = {
+  const baseConfig: { [key: string]: { label: string; color: string } } = useMemo(() => ({
     besoin: {
       label: "Besoin",
       color: "var(--chart-1)",
@@ -34,12 +55,12 @@ export default function AnalysesPage() {
       label: "Rappatriements",
       color: "var(--chart-4)",
     },
-  }
+  }), [])
 
   // Configuration dynamique pour les magasins externes
   const [dynamicConfig, setDynamicConfig] = useState(baseConfig)
   const [showStocksExternes, setShowStocksExternes] = useState(false)
-  const [analyseResult, setAnalyseResult] = useState<AnalyseResult | null>(null)
+  const [analyseResult, setAnalyseResult] = useState<any>(null)
   const [horizonDays, setHorizonDays] = useState(5)
   const [dateInitiale, setDateInitiale] = useState(new Date().toISOString().split('T')[0])
 
@@ -61,18 +82,19 @@ export default function AnalysesPage() {
   const [codeMp, setCodeMp] = useState(getSavedCodeMp)
   const [customData, setCustomData] = useState<AnalyseData[]>(defaultData)
   const [isLoading, setIsLoading] = useState(false)
+  const [besoinCharge, setBesoinCharge] = useState<BesoinCharge | null>(null)
 
-  // Effet pour charger les données au montage du composant si un code MP est sauvegardé
-  useEffect(() => {
-    const savedCodeMp = getSavedCodeMp()
-    if (savedCodeMp.trim()) {
-      // console.log(`📊 [ANALYSES-PAGE] Code MP sauvegardé trouvé: ${savedCodeMp}, chargement automatique des données`)
-      chargerDonnees(savedCodeMp)
+  // Récupérer les données du besoin depuis localStorage
+  const getBesoinData = (): BesoinCharge | null => {
+    if (typeof window !== 'undefined') {
+      const besoinData = localStorage.getItem('analyses_besoin_data')
+      return besoinData ? JSON.parse(besoinData) : null
     }
-  }, [])
+    return null
+  }
 
   // Fonction pour charger les données
-  const chargerDonnees = async (codeMpToLoad: string) => {
+  const chargerDonnees = useCallback(async (codeMpToLoad: string) => {
     if (!codeMpToLoad.trim()) {
       // Si aucun code MP n'est saisi, utiliser les données par défaut
       setCustomData(defaultData)
@@ -122,7 +144,24 @@ export default function AnalysesPage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [horizonDays, dateInitiale, baseConfig, defaultData])
+
+  // Effet pour charger les données au montage du composant si un code MP est sauvegardé
+  useEffect(() => {
+    const savedCodeMp = getSavedCodeMp()
+    const besoinData = getBesoinData()
+    
+    if (besoinData) {
+      setBesoinCharge(besoinData)
+      // Nettoyer le localStorage après récupération
+      localStorage.removeItem('analyses_besoin_data')
+    }
+    
+    if (savedCodeMp.trim()) {
+      // console.log(`📊 [ANALYSES-PAGE] Code MP sauvegardé trouvé: ${savedCodeMp}, chargement automatique des données`)
+      chargerDonnees(savedCodeMp)
+    }
+  }, [chargerDonnees])
 
   // Effet pour charger les données quand le code MP change
   useEffect(() => {
@@ -135,7 +174,7 @@ export default function AnalysesPage() {
     }, 500)
     
     return () => clearTimeout(timeoutId)
-  }, [codeMp, horizonDays, dateInitiale])
+  }, [codeMp, chargerDonnees])
 
   // Déterminer les clés à afficher selon l'état du toggle
   const getBarKeys = () => {
@@ -179,10 +218,10 @@ export default function AnalysesPage() {
       color: "#16a34a"
     }
     
-    const besoins = besoinData.besoin || 0
-    const stockInterne = stockData.stocks_internes || 0
-    const rappatriements = stockData.rappatriements || 0
-    const receptions = stockData.receptions || 0
+    const besoins = Number(besoinData.besoin) || 0
+    const stockInterne = Number(stockData.stocks_internes) || 0
+    const rappatriements = Number(stockData.rappatriements) || 0
+    const receptions = Number(stockData.receptions) || 0
     
     // Calculer le stock total disponible (interne + rappatriements + réceptions)
     const stockTotal = stockInterne + rappatriements + receptions
@@ -225,6 +264,43 @@ export default function AnalysesPage() {
   return (
     <div>
       <div className="text-2xl font-bold">Analyses</div>
+
+      {/* Affichage du besoin chargé */}
+      {besoinCharge && (
+        <Card className="mt-4 mb-6">
+          <CardHeader>
+            <CardTitle className="text-lg text-blue-600">Besoin chargé depuis la liste</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div>
+                <Label className="text-sm font-medium text-gray-600">Code MP</Label>
+                <p className="text-lg font-semibold">{besoinCharge.code_mp}</p>
+              </div>
+              <div>
+                <Label className="text-sm font-medium text-gray-600">Matière</Label>
+                <p className="text-lg font-semibold">{besoinCharge.nom_matiere}</p>
+              </div>
+              <div>
+                <Label className="text-sm font-medium text-gray-600">Quantité</Label>
+                <p className="text-lg font-semibold">{besoinCharge.quantite}</p>
+              </div>
+              <div>
+                <Label className="text-sm font-medium text-gray-600">Échéance</Label>
+                <p className="text-lg font-semibold">{new Date(besoinCharge.echeance).toLocaleDateString('fr-FR')}</p>
+              </div>
+              <div>
+                <Label className="text-sm font-medium text-gray-600">État</Label>
+                <p className="text-lg font-semibold">{besoinCharge.etat}</p>
+              </div>
+              <div>
+                <Label className="text-sm font-medium text-gray-600">Lot</Label>
+                <p className="text-lg font-semibold">{besoinCharge.lot || 'N/A'}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Contrôles pour l'analyse */}
       <div className="mt-4 space-y-4">
@@ -305,7 +381,7 @@ export default function AnalysesPage() {
               <CardTitle className="text-xs font-medium">Matière</CardTitle>
             </CardHeader>
             <CardContent className="px-0 pb-0">
-              <div className="text-sm font-semibold">{analyseResult.nom_matiere || codeMp}</div>
+              <div className="text-sm font-semibold">{analyseResult?.nom_matiere || codeMp}</div>
               <div className="text-xs text-gray-600">Code: {codeMp}</div>
             </CardContent>
           </Card>
@@ -316,7 +392,7 @@ export default function AnalysesPage() {
             </CardHeader>
             <CardContent className="px-0 pb-0">
               <div className="text-sm font-semibold">
-                {analyseResult.quantite_totale_disponible?.toLocaleString() || 0}
+                {analyseResult?.quantite_totale_disponible?.toLocaleString() || 0}
               </div>
             </CardContent>
           </Card>
@@ -326,8 +402,8 @@ export default function AnalysesPage() {
               <CardTitle className="text-xs font-medium">Stock Manquant</CardTitle>
             </CardHeader>
             <CardContent className="px-0 pb-0">
-              <div className={`text-sm font-semibold ${(analyseResult.stock_manquant || 0) > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                {analyseResult.stock_manquant?.toLocaleString() || 0}
+              <div className={`text-sm font-semibold ${(analyseResult?.stock_manquant || 0) > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                {analyseResult?.stock_manquant?.toLocaleString() || 0}
               </div>
             </CardContent>
           </Card>

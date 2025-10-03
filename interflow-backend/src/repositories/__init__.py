@@ -7,7 +7,7 @@ from .receptions_repository import ReceptionsRepository
 from .stocks_repository import StocksRepository
 from .matieres_premieres_repository import MatieresPremieresRepository
 from .rappatriements_repository import RappatriementsRepository
-from .storage_strategies import JSONStorageStrategy, CSVStorageStrategy, SQLiteStorageStrategy
+from .storage_strategies import JSONStorageStrategy, CSVStorageStrategy, SQLiteStorageStrategy, S3StorageStrategy
 
 __all__ = [
     'BesoinsRepository',
@@ -18,4 +18,5 @@ __all__ = [
     'JSONStorageStrategy',
     'CSVStorageStrategy',
     'SQLiteStorageStrategy',
+    'S3StorageStrategy',
 ]

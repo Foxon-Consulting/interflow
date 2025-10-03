@@ -175,6 +175,28 @@ class StockFlexnetDecoder(Decoder[Stock]):
             logger.warning(f"Impossible de parser la quantité '{quantity_value}', utilisation de 0.0")
             return 0.0
 
+    def _convert_quantity_to_kg(self, quantite: float, unite_mesure: str) -> float:
+        """
+        Convertit automatiquement toute quantité en kilos
+        
+        Args:
+            quantite: La quantité à convertir
+            unite_mesure: L'unité de mesure (GRM pour grammes, KGM pour kilos)
+            
+        Returns:
+            float: La quantité en kilos
+        """
+        if quantite is None or pd.isna(quantite):
+            return 0.0
+        
+        # Convertir automatiquement en kilos selon l'unité de mesure
+        if unite_mesure and unite_mesure.upper() == 'GRM':
+            # Grammes -> Kilos
+            return quantite / 1000.0
+        else:
+            # KGM ou autre -> considérer déjà en kilos
+            return quantite
+
     def decode_row(self, row: dict) -> Stock:
         """
         Décode une ligne stock_flexnet en objet Stock
@@ -222,14 +244,21 @@ class StockFlexnetDecoder(Decoder[Stock]):
                 # Fallback avec parse_date
                 dluo = parse_date(dluo_raw)
 
+        # Récupérer l'unité de mesure et la quantité
+        unite_mesure = clean_string_value(self._find_column_value(row, 'udm')) or 'KGM'
+        quantite_raw = self._parse_quantity(self._find_column_value(row, 'quantite'))
+        
+        # Convertir automatiquement la quantité en kilos
+        quantite_kg = self._convert_quantity_to_kg(quantite_raw, unite_mesure)
+
         try:
             # Créer le stock (la normalisation se fait automatiquement dans le modèle Pydantic)
             stock = Stock(
                 article=article,
                 libelle_article=libelle_article or "N/A",
                 du=None,  # Pas de champ DU dans stock_flexnet
-                quantite=self._parse_quantity(self._find_column_value(row, 'quantite')),
-                udm=self._find_column_value(row, 'udm') or 'N/A',
+                quantite=quantite_kg,
+                udm='KGM',  # Toujours en kilos après conversion
                 statut_lot=statut_lot or 'N/A',
                 division=division or 'N/A',
                 magasin=division or 'N/A',  # Utiliser division comme magasin

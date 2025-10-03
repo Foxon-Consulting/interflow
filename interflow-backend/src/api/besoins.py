@@ -2,6 +2,9 @@
 Endpoints pour la gestion des besoins
 """
 
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import APIRouter, HTTPException, Query, UploadFile, File
 from typing import Dict, Any, Optional
 import logging

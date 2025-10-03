@@ -16,7 +16,8 @@ from repositories import (
     RappatriementsRepository,
     MatieresPremieresRepository,
     JSONStorageStrategy,
-    SQLiteStorageStrategy
+    SQLiteStorageStrategy,
+    S3StorageStrategy
 )
 
 from lib.paths import ProjectPaths, get_input_file, get_reference_file
@@ -63,10 +64,13 @@ class DataService:
         else:
             storage_strategy = JSONStorageStrategy()
         
+        # Stratégie spéciale pour les rappatriements (S3)
+        rappatriements_storage_strategy = S3StorageStrategy()
+        
         self.besoins_repo = BesoinsRepository(storage_strategy)
         self.stocks_repo = StocksRepository(storage_strategy)
         self.receptions_repo = ReceptionsRepository(storage_strategy)
-        self.rappatriements_repo = RappatriementsRepository(storage_strategy)
+        self.rappatriements_repo = RappatriementsRepository(rappatriements_storage_strategy)
         self.matieres_repo = MatieresPremieresRepository(storage_strategy)
         
         # Marquer comme initialisé

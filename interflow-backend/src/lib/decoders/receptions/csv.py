@@ -157,6 +157,31 @@ class CSVReceptionsDecoder(Decoder[Reception]):
 
         return None
 
+    def _convert_quantity_to_kg(self, quantite: str, unite_mesure: str) -> float:
+        """
+        Convertit automatiquement toute quantité en kilos
+        
+        Args:
+            quantite: La quantité à convertir
+            unite_mesure: L'unité de mesure (ignorée, tout est converti en kilos)
+            
+        Returns:
+            float: La quantité en kilos
+        """
+        try:
+            qty = float(quantite)
+        except (ValueError, TypeError):
+            logger.warning(f"Quantité invalide: {quantite}, utilisation de 0")
+            return 0.0
+        
+        # Convertir automatiquement en kilos selon l'unité de mesure
+        if unite_mesure and unite_mesure.upper() == 'GRM':
+            # Grammes -> Kilos
+            return qty / 1000.0
+        else:
+            # KGM ou autre -> considérer déjà en kilos
+            return qty
+
     def decode_row(self, row: dict) -> Reception:
         """
         Décode une ligne CSV en objet Reception
@@ -191,19 +216,26 @@ class CSVReceptionsDecoder(Decoder[Reception]):
             nom=description_article or "Matière sans description"
         )
 
+        # Récupérer l'unité de mesure et la quantité
+        unite_mesure = clean_string_value(self._find_column_value(row, 'unite_mesure')) or 'KGM'
+        quantite_str = self._find_column_value(row, 'quantite') or '0'
+        
+        # Convertir automatiquement la quantité en kilos
+        quantite_kg = self._convert_quantity_to_kg(quantite_str, unite_mesure)
+
         # Créer la réception (la normalisation se fait automatiquement dans le modèle Pydantic)
         try:
             reception = Reception(
                 matiere=matiere,
-                quantite=self._find_column_value(row, 'quantite') or '0',
+                quantite=quantite_kg,
                 date_creation=datetime.now().replace(tzinfo=None),  # Pas de date dans le CSV, utiliser maintenant
                 # Champs optionnels
                 ordre=numero_reception,
                 fournisseur=fournisseur,
                 article=article,
                 libelle_article=description_article or "Article sans description",
-                quantite_ordre=self._find_column_value(row, 'quantite') or '0',
-                udm=clean_string_value(self._find_column_value(row, 'unite_mesure')) or 'GRM',
+                quantite_ordre=quantite_kg,
+                udm='KGM',  # Toujours en kilos après conversion
                 type_ordre='MATIERE_PREMIERE',  # Valeur par défaut
                 statut_ordre=clean_string_value(self._find_column_value(row, 'statut')) or 'EN_ATTENTE',
                 description_externe=description_article

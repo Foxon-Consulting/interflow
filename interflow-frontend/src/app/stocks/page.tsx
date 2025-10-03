@@ -286,7 +286,7 @@ export default function StocksPage() {
       
       <Card>
         <CardHeader>
-          <CardTitle>Stocks INCONNUs</CardTitle>
+          <CardTitle>Stocks</CardTitle>
           <CardDescription>Stocks internes et externes</CardDescription>
         </CardHeader>
         <CardContent>
@@ -316,8 +316,8 @@ export default function StocksPage() {
                     <td className="border border-gray-200 px-2 py-1 text-sm">
                       {stock.lot_fournisseur && stock.lot_fournisseur !== '0' && stock.lot_fournisseur !== 'NaN' && stock.lot_fournisseur !== 'nan' ? stock.lot_fournisseur : 'N/A'}
                     </td>
-                    <td className="border border-gray-200 px-2 py-1 text-right text-sm">
-                      {stock.quantite} {stock.udm}
+                    <td className="border border-gray-200 px-2 py-1 text-sm">
+                      {stock.quantite}
                     </td>
                     <td className="border border-gray-200 px-2 py-1">
                       <span className={`px-1 py-0.5 rounded text-xs ${

@@ -296,7 +296,7 @@ export default function ReceptionsPage() {
                       </td>
                       <td className="border border-gray-200 px-2 py-1 text-sm">{reception.matiere.code_mp}</td>
                       <td className="border border-gray-200 px-2 py-1 text-right text-sm">
-                        {reception.quantite} {reception.udm || "unité(s)"}
+                        {reception.quantite}
                       </td>
                       <td className="border border-gray-200 px-2 py-1">
                         <div className="flex items-center gap-1">

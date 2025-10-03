@@ -2,6 +2,9 @@
 Endpoints pour la gestion des réceptions
 """
 
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import APIRouter, HTTPException, Query, UploadFile, File
 from typing import Dict, Any, Optional, List
 import logging

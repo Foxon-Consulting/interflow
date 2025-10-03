@@ -308,6 +308,16 @@ export default function BesoinsPage() {
             variant="outline"
             onClick={(e) => {
               e.stopPropagation();
+              // Sauvegarder les données du besoin dans localStorage
+              localStorage.setItem('analyses_besoin_data', JSON.stringify({
+                id: besoin.id,
+                code_mp: besoin.matiere.code_mp,
+                nom_matiere: besoin.matiere.nom,
+                quantite: besoin.quantite,
+                echeance: besoin.echeance.toISOString(),
+                etat: besoin.etat,
+                lot: besoin.lot
+              }));
               router.push(`/analyses?mp=${encodeURIComponent(besoin.matiere.code_mp)}`);
             }}
             className="flex items-center gap-1 text-xs h-6 px-2"
@@ -424,7 +434,6 @@ export default function BesoinsPage() {
         <div className="flex justify-between items-center mb-4">
           <div>
             <h2 className="text-xl font-semibold">Liste des Besoins Opérationnels</h2>
-            <p className="text-gray-600">Vue détaillée des besoins - cliquez sur &quot;Analyse&quot; pour calculer la couverture</p>
             <p className="text-sm text-blue-600 mt-1">💡 Cliquez sur les en-têtes de colonnes pour trier (Code MP, Matière, Quantité, Échéance, État)</p>
           </div>
           
@@ -475,7 +484,7 @@ export default function BesoinsPage() {
       title="Gestion des Besoins Opérationnels"
       actions={{
         add: {
-          show: createFromNextReadableStream,
+          show: true,
           onClick: () => router.push("/besoins/create"),
           label: "Nouveau besoin"
         },
