@@ -13,9 +13,14 @@ services:
       - API_PORT=5000
       - PYTHONPATH=/app
       - PYTHONUNBUFFERED=1
+      - AWS_REGION=eu-west-1
+      - S3_BESOINS_FILE_PATH=s3://foxon-mane-interflow/interflow_besoin_et_stock.xlsx
+      - S3_RECEPTIONS_FILE_PATH=s3://foxon-mane-interflow/interflow_reception_prevue.csv
+      - S3_STOCKS_FILE_PATH=s3://foxon-mane-interflow/interflow_besoin_et_stock.xlsx
+      - S3_RAPPATRIMENT_FILE_PATH=s3://foxon-mane-interflow/rappatriments.db
+      - STORAGE_STRATEGY='sqlite'
     volumes:
       # Mapping du répertoire data pour le backend
       - ./data:/app/data
       # Mapping du répertoire logs pour accéder aux logs depuis l'hôte
       - ./logs:/var/log
-      

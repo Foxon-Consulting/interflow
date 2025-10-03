@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import dynamic from "next/dynamic";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Package, Truck, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
@@ -26,7 +27,8 @@ const getTypeIcon = (type: TypeReception) => {
 };
 
 
-export default function ReceptionsPage() {
+// Composant principal des réceptions
+function ReceptionsPageContent() {
   const queryClient = useQueryClient();
 
   // Récupérer les données de réception avec React Query optimisé
@@ -390,4 +392,14 @@ export default function ReceptionsPage() {
       {receptionsContent}
     </ResourcePageLayout>
   );
-} 
+}
+
+// Export par défaut avec désactivation du pré-rendu
+export default dynamic(() => Promise.resolve(ReceptionsPageContent), {
+  ssr: false,
+  loading: () => (
+    <div className="space-y-6">
+      <LoadingSpinner text="Chargement de la page des réceptions..." />
+    </div>
+  )
+}); 

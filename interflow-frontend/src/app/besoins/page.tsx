@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback, useEffect } from "react";
+import dynamic from "next/dynamic";
 import { useFilterParams } from "@/hooks/use-filter-params";
 import { BarChart3 } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
@@ -15,9 +16,9 @@ import { ResourcePageLayout } from "@/components/layouts/resource-page-layout";
 import { DataTable, DataRow } from "@/components/data-table";
 import { useRouter } from "next/navigation";
 import { SearchFilter, FilterConfig } from "@/components/filters";
-import { createFromNextReadableStream } from "next/dist/client/components/router-reducer/fetch-server-response";
 
-export default function BesoinsPage() {
+// Composant principal des besoins
+function BesoinsPageContent() {
   const router = useRouter();
   const queryClient = useQueryClient();
   
@@ -309,15 +310,17 @@ export default function BesoinsPage() {
             onClick={(e) => {
               e.stopPropagation();
               // Sauvegarder les données du besoin dans localStorage
-              localStorage.setItem('analyses_besoin_data', JSON.stringify({
-                id: besoin.id,
-                code_mp: besoin.matiere.code_mp,
-                nom_matiere: besoin.matiere.nom,
-                quantite: besoin.quantite,
-                echeance: besoin.echeance.toISOString(),
-                etat: besoin.etat,
-                lot: besoin.lot
-              }));
+              if (typeof window !== 'undefined') {
+                localStorage.setItem('analyses_besoin_data', JSON.stringify({
+                  id: besoin.id,
+                  code_mp: besoin.matiere.code_mp,
+                  nom_matiere: besoin.matiere.nom,
+                  quantite: besoin.quantite,
+                  echeance: besoin.echeance.toISOString(),
+                  etat: besoin.etat,
+                  lot: besoin.lot
+                }));
+              }
               router.push(`/analyses?mp=${encodeURIComponent(besoin.matiere.code_mp)}`);
             }}
             className="flex items-center gap-1 text-xs h-6 px-2"
@@ -520,4 +523,14 @@ export default function BesoinsPage() {
       {besoinsContent}
     </ResourcePageLayout>
   );
-} 
+}
+
+// Export par défaut avec désactivation du pré-rendu
+export default dynamic(() => Promise.resolve(BesoinsPageContent), {
+  ssr: false,
+  loading: () => (
+    <div className="space-y-6">
+      <LoadingSpinner text="Chargement de la page des besoins..." />
+    </div>
+  )
+});

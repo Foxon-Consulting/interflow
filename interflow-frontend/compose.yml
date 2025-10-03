@@ -10,5 +10,3 @@ services:
       - "3000:3000"
     container_name: "interflow-frontend"
     restart: unless-stopped
-    environment:
-      # Plus besoin d'URL backend : communication via API Routes Next.js

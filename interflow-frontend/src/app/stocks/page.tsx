@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
+import dynamic from "next/dynamic";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -16,7 +17,8 @@ import { Stock } from "@/model/stock";
 import { SearchFilter, FilterConfig } from "@/components/filters";
 import { useFilterParams } from "@/hooks/use-filter-params";
 
-export default function StocksPage() {
+// Composant principal des stocks
+function StocksPageContent() {
   const router = useRouter();
   const queryClient = useQueryClient();
   
@@ -412,4 +414,14 @@ export default function StocksPage() {
       {stocksContent}
     </ResourcePageLayout>
   );
-} 
+}
+
+// Export par défaut avec désactivation du pré-rendu
+export default dynamic(() => Promise.resolve(StocksPageContent), {
+  ssr: false,
+  loading: () => (
+    <div className="space-y-6">
+      <LoadingSpinner text="Chargement de la page des stocks..." />
+    </div>
+  )
+}); 
