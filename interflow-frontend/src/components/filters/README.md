@@ -92,10 +92,10 @@ const filterConfigs: FilterConfig[] = [
     key: "typeEmballage",
     label: "Type d'emballage",
     options: [
-      { value: TypeEmballage.CARTON, label: "Carton" },
-      { value: TypeEmballage.SAC, label: "Sac" },
-      { value: TypeEmballage.CONTENEUR, label: "Conteneur" },
-      { value: TypeEmballage.AUTRE, label: "Autre" }
+      { value: "carton", label: "Carton" },
+      { value: "sac", label: "Sac" },
+      { value: "conteneur", label: "Conteneur" },
+      { value: "autre", label: "Autre" }
     ]
   }
 ];

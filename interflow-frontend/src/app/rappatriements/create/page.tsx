@@ -10,14 +10,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
 import { createRappatriement } from "@/services/rappatriement-service";
-import { ProduitRappatriementModel, TypeEmballage } from "@/model/rappatriement";
+import { ProduitRappatriementModel } from "@/model/rappatriement";
 
 interface ProduitFormData {
   code_prdt: string;
   designation_prdt: string;
   lot: string;
   poids_net: number;
-  type_emballage: TypeEmballage;
+  type_emballage: string;
   stock_solde: boolean;
   nb_contenants: number;
   nb_palettes: number;
@@ -86,7 +86,7 @@ export default function CreateRappatriementPage() {
     designation_prdt: "",
     lot: "",
     poids_net: 0,
-    type_emballage: TypeEmballage.CARTON,
+    type_emballage: "carton",
     stock_solde: false,
     nb_contenants: 0,
     nb_palettes: 0,
@@ -130,7 +130,7 @@ export default function CreateRappatriementPage() {
       designation_prdt: "",
       lot: "",
       poids_net: 0,
-      type_emballage: TypeEmballage.CARTON,
+      type_emballage: "carton",
       stock_solde: false,
       nb_contenants: 0,
       nb_palettes: 0,
@@ -428,16 +428,16 @@ export default function CreateRappatriementPage() {
                   <Label htmlFor="type_emballage">Type d'emballage</Label>
                   <Select
                     value={currentProduit.type_emballage}
-                    onValueChange={(value) => handleProduitChange("type_emballage", value as TypeEmballage)}
+                    onValueChange={(value) => handleProduitChange("type_emballage", value)}
                   >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value={TypeEmballage.CARTON}>Carton</SelectItem>
-                      <SelectItem value={TypeEmballage.SAC}>Sac</SelectItem>
-                      <SelectItem value={TypeEmballage.CONTENEUR}>Conteneur</SelectItem>
-                      <SelectItem value={TypeEmballage.AUTRE}>Autre</SelectItem>
+                      <SelectItem value="carton">Carton</SelectItem>
+                      <SelectItem value="sac">Sac</SelectItem>
+                      <SelectItem value="conteneur">Conteneur</SelectItem>
+                      <SelectItem value="autre">Autre</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

@@ -15,6 +15,7 @@ import { ResourcePageLayout } from "@/components/layouts/resource-page-layout";
 import { DataTable, DataRow } from "@/components/data-table";
 import { useRouter } from "next/navigation";
 import { SearchFilter, FilterConfig } from "@/components/filters";
+import { createFromNextReadableStream } from "next/dist/client/components/router-reducer/fetch-server-response";
 
 export default function BesoinsPage() {
   const router = useRouter();
@@ -474,7 +475,7 @@ export default function BesoinsPage() {
       title="Gestion des Besoins Opérationnels"
       actions={{
         add: {
-          show: false,
+          show: createFromNextReadableStream,
           onClick: () => router.push("/besoins/create"),
           label: "Nouveau besoin"
         },

@@ -7,7 +7,7 @@ from pathlib import Path
 
 from .base_repository import BaseRepository
 from .storage_strategies import JSONStorageStrategy, StorageStrategy
-from models.rappatriement import Rappatriement, ProduitRappatriement, TypeEmballage
+from models.rappatriement import Rappatriement, ProduitRappatriement
 from lib.paths import get_repository_file
 
 import json
@@ -179,7 +179,7 @@ class RappatriementsRepository(BaseRepository[Rappatriement]):
                     break  # Éviter les doublons si plusieurs produits correspondent
         return filtered_rappatriements
 
-    def get_rappatriements_by_type_emballage(self, type_emballage: TypeEmballage) -> List[Rappatriement]:
+    def get_rappatriements_by_type_emballage(self, type_emballage: str) -> List[Rappatriement]:
         """
         Récupère les rapatriements contenant un type d'emballage spécifique
 
@@ -260,7 +260,7 @@ class RappatriementsRepository(BaseRepository[Rappatriement]):
         # Statistiques par type d'emballage
         for rappatriement in rappatriements:
             for produit in rappatriement.produits:
-                type_emb = produit.type_emballage.value
+                type_emb = produit.type_emballage
                 if type_emb not in stats["types_emballage"]:
                     stats["types_emballage"][type_emb] = {"count": 0, "poids": 0}
                 stats["types_emballage"][type_emb]["count"] += 1
@@ -603,7 +603,7 @@ class RappatriementsRepository(BaseRepository[Rappatriement]):
                                      adresse_destinataire: Optional[str] = None,
                                      adresse_enlevement: Optional[str] = None,
                                      code_produit: Optional[str] = None,
-                                     type_emballage: Optional[TypeEmballage] = None,
+                                     type_emballage: Optional[str] = None,
                                      poids_min: Optional[float] = None,
                                      poids_max: Optional[float] = None,
                                      nb_palettes_min: Optional[int] = None,

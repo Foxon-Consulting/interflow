@@ -106,15 +106,47 @@ export class RappatriementExportService {
       row.getCell('A').value = produit.prelevement ? 'X' : '';
       row.getCell('B').value = produit.code_prdt;
       row.getCell('C').value = produit.designation_prdt;
-      row.getCell('D').value = produit.lot;
+      
+      // Lot - convertir en entier pour éviter les décimales
+      const cellD = row.getCell('D');
+      const lotValue = parseInt(String(produit.lot), 10);
+      cellD.value = isNaN(lotValue) ? String(produit.lot) : lotValue;
+      // Format entier sans décimales
+      if (cellD.style) {
+        cellD.style = { ...cellD.style, numFmt: '0' };
+      } else {
+        cellD.numFmt = '0';
+      }
+      
       row.getCell('E').value = produit.poids_net;
       row.getCell('F').value = produit.type_emballage;
-      row.getCell('G').value = produit.stock_solde ? 'X' : '';
+      row.getCell('G').value = produit.stock_solde ? 'Oui' : 'Non';
       row.getCell('H').value = produit.nb_contenants;
       row.getCell('I').value = produit.nb_palettes;
       row.getCell('J').value = produit.dimension_palettes;
-      row.getCell('K').value = produit.code_onu;
-      row.getCell('L').value = produit.grp_emballage;
+      
+      // Code ONU - convertir en entier pour éviter les décimales
+      const cellK = row.getCell('K');
+      const onuValue = parseInt(String(produit.code_onu), 10);
+      cellK.value = isNaN(onuValue) ? String(produit.code_onu) : onuValue;
+      // Format entier sans décimales
+      if (cellK.style) {
+        cellK.style = { ...cellK.style, numFmt: '0' };
+      } else {
+        cellK.numFmt = '0';
+      }
+      
+      // Groupe d'emballage - convertir en entier pour éviter les décimales
+      const cellL = row.getCell('L');
+      const grpValue = parseInt(String(produit.grp_emballage), 10);
+      cellL.value = isNaN(grpValue) ? String(produit.grp_emballage) : grpValue;
+      // Format entier sans décimales
+      if (cellL.style) {
+        cellL.style = { ...cellL.style, numFmt: '0' };
+      } else {
+        cellL.numFmt = '0';
+      }
+      
       row.getCell('M').value = produit.po;
       
       row.commit();

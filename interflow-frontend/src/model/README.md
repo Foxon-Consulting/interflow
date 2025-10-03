@@ -20,7 +20,7 @@ import { MatiereModel } from '@/model/matiere';
 import { BesoinModel, Etat } from '@/model/besoin';
 import { StockModel } from '@/model/stock';
 import { ReceptionModel, TypeReception, EtatReception } from '@/model/reception';
-import { RappatriementModel, ProduitRappatriementModel, TypeEmballage } from '@/model/rappatriement';
+import { RappatriementModel, ProduitRappatriementModel } from '@/model/rappatriement';
 import { CouvertureParBesoin } from '@/model/analyse';
 
 // Créer une matière
@@ -61,7 +61,6 @@ const besoinFromData = BesoinModel.fromData(data);
 - **`Etat`** - États des besoins (INCONNU, PARTIEL, COUVERT, NON_COUVERT)
 - **`TypeReception`** - Types de réceptions (EXTERNE, INTERNE)
 - **`EtatReception`** - États des réceptions (EN_COURS, TERMINEE, ANNULEE, etc.)
-- **`TypeEmballage`** - Types d'emballages (CARTON, SAC, CONTENEUR, AUTRE)
 
 ### 🛠️ Méthodes
 
