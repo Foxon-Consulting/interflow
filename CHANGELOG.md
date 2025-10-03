@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.1.0](https://github.com/Foxon-Consulting/interflow/compare/1.0.0...1.1.0) (2025-10-03)
+
+
+### Features
+
+* :sparkles: connection to S3 and UI updates ([#3](https://github.com/Foxon-Consulting/interflow/issues/3)) ([ffaeaa0](https://github.com/Foxon-Consulting/interflow/commit/ffaeaa05f2b290ea4139f580a817d90fb9168cf3))
+
+
+### Bug Fixes
+
+* :ambulance: fix issue with ssr rendering for useSearchParams ([e119b27](https://github.com/Foxon-Consulting/interflow/commit/e119b271b8f41c8e0dd2b21bddd670ad07fe5673))
+
 ## [1.0.0](https://github.com/Foxon-Consulting/interflow/compare/v0.0.1...1.0.0) (2025-09-29)
 
 
