@@ -39,7 +39,7 @@ export function PageContainer({ children }: PageContainerProps) {
       </main>
       
       <footer className="mt-12 py-6 border-t text-center text-sm text-muted-foreground">
-        <p>© 2025 FOXON CONSULTING. Tous droits réservés.</p>
+        <p>© MANE (EN) - Copyright 2025</p>
       </footer>
     </div>
   );

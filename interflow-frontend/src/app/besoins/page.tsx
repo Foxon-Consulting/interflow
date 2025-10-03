@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback, useEffect } from "react";
+import { useFilterParams } from "@/hooks/use-filter-params";
 import { BarChart3 } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -15,13 +16,21 @@ import { DataTable, DataRow } from "@/components/data-table";
 import { useRouter } from "next/navigation";
 import { SearchFilter, FilterConfig } from "@/components/filters";
 
-export default function AgendaTest() {
+export default function BesoinsPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   
-  // États pour les filtres
-  const [rechercheText, setRechercheText] = useState("");
-  const [filtreEtat, setFiltreEtat] = useState<string>("tous");
+  // // États pour les filtres
+  // const [rechercheText, setRechercheText] = useState("");
+  // const [filtreEtat, setFiltreEtat] = useState<string>("tous");
+
+  const { filters, updateFilter } = useFilterParams({
+    recherche: "",
+    etat: "tous",
+    sortField: "code_mp",
+    sortDirection: "asc"
+  });
+
   
   // Récupérer directement les données besoins depuis le service besoins (SANS analyse automatique)
   const { data: besoinData, isLoading, error, refetch } = useQuery({
@@ -172,17 +181,17 @@ export default function AgendaTest() {
     return besoinData.filter((besoin) => {
       const etatCouverture = getEtatCouverture(besoin);
       
-      const matchRecherche = rechercheText === "" || 
-        besoin.matiere.code_mp.toLowerCase().includes(rechercheText.toLowerCase()) ||
-        besoin.matiere.nom.toLowerCase().includes(rechercheText.toLowerCase()) ||
-        etatCouverture.toLowerCase().includes(rechercheText.toLowerCase()) ||
-        besoin.echeance.toLocaleDateString('fr-FR').includes(rechercheText.toLowerCase());
+      const matchRecherche = filters.recherche === "" || 
+        besoin.matiere.code_mp.toLowerCase().includes(filters.recherche.toLowerCase()) ||
+        besoin.matiere.nom.toLowerCase().includes(filters.recherche.toLowerCase()) ||
+        etatCouverture.toLowerCase().includes(filters.recherche.toLowerCase()) ||
+        besoin.echeance.toLocaleDateString('fr-FR').includes(filters.recherche.toLowerCase());
       
-      const matchEtat = filtreEtat === "tous" || etatCouverture === filtreEtat;
+      const matchEtat = filters.etat === "tous" || etatCouverture === filters.etat;
       
       return matchRecherche && matchEtat;
     });
-  }, [besoinData, rechercheText, filtreEtat, getEtatCouverture]);
+  }, [besoinData, filters, getEtatCouverture]);
 
   // Préparer les données pour le DataTable en utilisant les besoins filtrés
   const tableData: DataRow[] = useMemo(() => {
@@ -350,12 +359,12 @@ export default function AgendaTest() {
   }, [besoinData]);
   
   const filterValues = {
-    etat: filtreEtat
+    etat: filters.etat
   };
   
   const handleFilterChange = (filterKey: string, value: string) => {
     if (filterKey === "etat") {
-      setFiltreEtat(value);
+      updateFilter('etat', value);
     }
   };
 
@@ -389,8 +398,8 @@ export default function AgendaTest() {
     <div className="space-y-6">
       {/* Section des filtres */}
       <SearchFilter
-        searchValue={rechercheText}
-        onSearchChange={setRechercheText}
+        searchValue={filters.recherche}
+        onSearchChange={(value) => updateFilter('recherche', value)}
         searchPlaceholder="Rechercher un besoin..."
         filters={filterConfigs}
         filterValues={filterValues}

@@ -28,12 +28,7 @@ def is_valid_code_mp(code_mp: str) -> bool:
         return False
 
     # Ignorer les codes numériques courts (comme "67", "75")
-    if code_mp.isdigit() and len(code_mp) < 3:
-        return False
-
-    # Le format attendu est 6 caractères alphanumériques (ex: M63244)
-    # Mais on accepte aussi les codes plus courts s'ils ne sont pas purement numériques
-    if len(code_mp) < 3:
+    if code_mp.isdigit() and len(code_mp) < 6:
         return False
 
     return True
@@ -283,8 +278,9 @@ class XLSXBesoinsDecoder(Decoder[Besoin]):
                     libelle_mp = str(row.iloc[2]).strip() if pd.notna(row.iloc[2]) else ""
                     quantite_totale_str = str(row.iloc[7]).strip() if pd.notna(row.iloc[7]) else "0"
 
-                    # Ignorer les lignes vides, sans code MP ou lignes de total
-                    if not code_mp or code_mp == "nan" or code_mp == "" or code_mp == "75" or not is_valid_code_mp(code_mp):
+                   
+                    # Ignorer les lignes vides, sans code MP, code MP invalide ou code MP à ignorer
+                    if not is_valid_code_mp(code_mp):
                         continue
 
                     # Créer la matière
@@ -293,7 +289,7 @@ class XLSXBesoinsDecoder(Decoder[Besoin]):
                         nom=libelle_mp if libelle_mp and libelle_mp != "nan" else f"Matière {code_mp}"
                     )
 
-                    # Parser la quantité totale (pour information, mais on ne crée pas de besoin avec)
+                    # Parser la quantité totale (pour information, mais on ne créé plus de besoin avec)
                     quantite_totale = parse_quantite_precise(quantite_totale_str, self.precision_decimale)
 
                     # Note: On ne crée plus de besoin avec la quantité totale

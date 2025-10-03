@@ -419,8 +419,7 @@ class RappatriementsRepository(BaseRepository[Rappatriement]):
         imported_count = 0
         try:
             if file_path.endswith('.csv'):
-                from old.csv import CSVRappatriementsDecoder
-                decoder = CSVRappatriementsDecoder()
+                raise ValueError("Le fichier doit être un fichier XLSX")
             elif file_path.endswith('.xlsx'):
                 from lib.decoders.rappatriements.xlsx import XLSXRappatriementsDecoder
                 decoder = XLSXRappatriementsDecoder()

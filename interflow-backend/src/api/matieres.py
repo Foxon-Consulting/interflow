@@ -7,24 +7,14 @@ from typing import Dict, Any, Optional
 import logging
 from datetime import datetime
 
-from repositories.storage_strategies import JSONStorageStrategy
-from repositories import MatieresPremieresRepository
 from models.matieres import Matiere
+from services.data_service import DataService
 
 # Configuration du logging
 logger = logging.getLogger(__name__)
 
 # Création du router pour les matières
 router = APIRouter(prefix="/matieres", tags=["5. Matières - CRUD"])
-
-# Factory functions
-def get_storage_strategy():
-    """Factory pour créer une instance de JSONStorageStrategy"""
-    return JSONStorageStrategy()
-
-def get_matieres_repo() -> MatieresPremieresRepository:
-    """Factory pour créer une instance de MatieresPremieresRepository"""
-    return MatieresPremieresRepository(get_storage_strategy())
 
 @router.get("/")
 async def get_matieres() -> Dict[str, Any]:
@@ -35,7 +25,7 @@ async def get_matieres() -> Dict[str, Any]:
         Liste des matières
     """
     try:
-        repo = get_matieres_repo()
+        repo = DataService().matieres_repo
         matieres = repo.get_all()
         return {
             "total_matieres": len(matieres),
@@ -57,7 +47,7 @@ async def get_matiere_by_code(code_mp: str) -> Dict[str, Any]:
         Données de la matière
     """
     try:
-        repo = get_matieres_repo()
+        repo = DataService().matieres_repo
         matiere = repo.get_by_code_mp(code_mp)
         if not matiere:
             raise HTTPException(status_code=404, detail="Matière non trouvée")
@@ -80,7 +70,7 @@ async def create_matiere(matiere_data: Dict[str, Any]) -> Dict[str, Any]:
         Matière créée
     """
     try:
-        repo = get_matieres_repo()
+        repo = DataService().matieres_repo
         matiere = Matiere.from_model_dump(matiere_data)
         matiere_created = repo.create(matiere)
         return matiere_created.model_dump()
@@ -101,7 +91,7 @@ async def update_matiere(code_mp: str, matiere_data: Dict[str, Any]) -> Dict[str
         Matière mise à jour
     """
     try:
-        repo = get_matieres_repo()
+        repo = DataService().matieres_repo
         matiere = Matiere.from_model_dump(matiere_data)
         matiere_updated = repo.update(code_mp, matiere)
         if not matiere_updated:
@@ -125,7 +115,7 @@ async def delete_matiere(code_mp: str) -> Dict[str, Any]:
         Confirmation de suppression
     """
     try:
-        repo = get_matieres_repo()
+        repo = DataService().matieres_repo
         success = repo.delete(code_mp)
         if not success:
             raise HTTPException(status_code=404, detail="Matière non trouvée")
@@ -150,7 +140,7 @@ async def search_matieres(
         Liste des matières trouvées
     """
     try:
-        repo = get_matieres_repo()
+        repo = DataService().matieres_repo
         matieres = repo.search_by_nom(nom)
         return {
             "recherche": nom,
@@ -170,7 +160,7 @@ async def get_matieres_seveso() -> Dict[str, Any]:
         Liste des matières SEVESO
     """
     try:
-        repo = get_matieres_repo()
+        repo = DataService().matieres_repo
         matieres = repo.get_matieres_seveso()
         return {
             "total_matieres_seveso": len(matieres),
@@ -192,7 +182,7 @@ async def get_matieres_by_type(type_matiere: str) -> Dict[str, Any]:
         Liste des matières du type spécifié
     """
     try:
-        repo = get_matieres_repo()
+        repo = DataService().matieres_repo
         matieres = repo.get_matieres_by_type(type_matiere)
         return {
             "type_matiere": type_matiere,
@@ -215,7 +205,7 @@ async def download_fds(code_mp: str) -> Dict[str, Any]:
         URL de téléchargement de la FDS
     """
     try:
-        repo = get_matieres_repo()
+        repo = DataService().matieres_repo
         matiere = repo.get_by_code_mp(code_mp)
         if not matiere:
             raise HTTPException(status_code=404, detail="Matière non trouvée")

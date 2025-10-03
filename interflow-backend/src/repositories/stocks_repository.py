@@ -198,19 +198,29 @@ class StocksRepository(BaseRepository[Stock]):
 
     def import_from_file(self, file_path: str) -> None:
         """
-        Importe les stocks depuis un fichier CSV ou XLSX
+        Importe les stocks depuis un fichier XLSX
 
         Args:
             file_path: Chemin vers le fichier des stocks
         """
-        if file_path.endswith('.csv'):
-            from lib.decoders.stocks.csv import CSVStocksDecoder
-            super().import_from_file(file_path, CSVStocksDecoder)
-        elif file_path.endswith('.xlsx'):
+        if file_path.endswith('.xlsx'):
             from lib.decoders.stocks.xlsx import XLSXStocksDecoder
             super().import_from_file(file_path, XLSXStocksDecoder)
         else:
-            raise ValueError("Le fichier doit être un fichier CSV ou XLSX")
+            raise ValueError("Le fichier doit être un fichier XLSX")
+
+    def import_from_s3(self, s3_path: str) -> None:
+        """
+        Importe les stocks depuis un fichier XLSX d'un bucket S3
+
+        Args:
+            s3_path: Chemin vers le fichier dans le bucket S3
+        """
+        if s3_path.endswith('.xlsx'):
+            from lib.decoders.stocks.stock_flexnet import StockFlexnetDecoder
+            super().import_from_file(s3_path, StockFlexnetDecoder)
+        else:
+            raise ValueError("Le fichier doit être un fichier XLSX")
 
     def import_from_csv(self, csv_path: str = "data/stocks.csv") -> None:
         """

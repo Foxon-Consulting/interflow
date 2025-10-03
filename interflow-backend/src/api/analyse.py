@@ -10,12 +10,8 @@ from datetime import datetime, timedelta
 from services.analyse_service import AnalyseService
 from services.analyse_display_service import AnalyseDisplayService
 from repositories.storage_strategies import JSONStorageStrategy
-from repositories import (
-    BesoinsRepository,
-    StocksRepository,
-    ReceptionsRepository,
-    RappatriementsRepository
-)
+
+from services.data_service import DataService
 
 # Configuration du logging
 logger = logging.getLogger(__name__)
@@ -23,23 +19,9 @@ logger = logging.getLogger(__name__)
 # Création du router pour l'analyse
 router = APIRouter(prefix="/analyse", tags=["6. Analyse - Couverture"])
 
-# Factory functions
-def get_storage_strategy():
-    """Factory pour créer une instance de JSONStorageStrategy"""
-    return JSONStorageStrategy()
-
 def get_analyse_service() -> AnalyseService:
     """Factory pour créer une instance de AnalyseService"""
-    storage = get_storage_strategy()
-    besoins_repo = BesoinsRepository(storage)
-    stocks_repo = StocksRepository(storage)
-    receptions_repo = ReceptionsRepository(storage)
-    rappatriements_repo = RappatriementsRepository(storage)
-    return AnalyseService(besoins_repo, stocks_repo, receptions_repo, rappatriements_repo)
-
-def get_analyse_display_service() -> AnalyseDisplayService:
-    """Factory pour créer une instance de AnalyseDisplayService"""
-    return AnalyseDisplayService()
+    return AnalyseService(DataService().besoins_repo, DataService().stocks_repo, DataService().receptions_repo, DataService().rappatriements_repo)
 
 @router.get("/")
 async def analyze_coverage(
@@ -77,7 +59,7 @@ async def analyze_coverage(
         analyse = analyse_service.analyze_coverage(date_debut, horizon_days)
 
         # Créer le service d'affichage
-        display_service = get_analyse_display_service()
+        display_service = AnalyseDisplayService()
 
         # Formater la réponse
         return display_service.to_api_coverage_format(analyse)
@@ -126,7 +108,7 @@ async def analyze_matiere_coverage(
         analyse = analyse_service.analyze_matiere_coverage(code_mp, date_debut, horizon_days)
 
         # Créer le service d'affichage
-        display_service = get_analyse_display_service()
+        display_service = AnalyseDisplayService()
 
         # Formater la réponse
         return display_service.to_api_matiere_format(analyse, code_mp)
@@ -153,7 +135,7 @@ async def get_available_matieres() -> Dict[str, Any]:
         analyse = analyse_service.analyze_coverage()
 
         # Créer le service d'affichage
-        display_service = get_analyse_display_service()
+        display_service = AnalyseDisplayService()
 
         # Formater la réponse
         return display_service.to_api_matieres_list(analyse)

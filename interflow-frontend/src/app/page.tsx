@@ -5,10 +5,10 @@ export default function Home() {
     <div className="space-y-6">
       <div className="text-center mb-8">
         <h1 className="scroll-m-20 text-4xl font-extrabold tracking-tight lg:text-5xl mb-2">
-          SmartLogistics
+          Interflow
         </h1>
         <p className="text-muted-foreground">
-          Gestion de commandes
+          Gestion de Rappatriements
         </p>
       </div>
       

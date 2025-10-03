@@ -109,14 +109,14 @@ class ProjectPaths:
         Returns:
             Path: Chemin vers le fichier JSON du repository
         """
-        return self.data_repositories / f"{model_name.lower()}.json"
+        return self.data_repositories / f"{model_name.lower()}"
 
     def get_reference_file(self, filename: str, subdir: str = "") -> Path:
         """
         Retourne le chemin d'un fichier de référence
 
         Args:
-            filename: Nom du fichier (ex: 'matieres.json')
+            filename: Nom du fichier (ex: 'matieres')
             subdir: Sous-répertoire optionnel
 
         Returns:
@@ -131,7 +131,7 @@ class ProjectPaths:
         Retourne le chemin d'un fichier d'entrée
 
         Args:
-            filename: Nom du fichier (ex: 'besoins.csv')
+            filename: Nom du fichier (ex: 'besoins')
             subdir: Sous-répertoire optionnel
 
         Returns:
