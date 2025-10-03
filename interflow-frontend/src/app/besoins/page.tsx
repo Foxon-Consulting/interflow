@@ -7,7 +7,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchAllBesoinData, flushBesoins, importBesoinsFromFile } from "@/services/besoin-service";
+import { fetchAllBesoinData, flushBesoins, importBesoinsFromFile, importBesoinsFromS3 } from "@/services/besoin-service";
 import { AnalyseService, AnalyseBesoinsResponse } from "@/services/analyse-service";
 import { BesoinModel } from "@/model/besoin";
 import { CouvertureParBesoin } from "@/model/analyse";
@@ -33,7 +33,7 @@ export default function BesoinsPage() {
 
   
   // Récupérer directement les données besoins depuis le service besoins (SANS analyse automatique)
-  const { data: besoinData, isLoading, error, refetch } = useQuery({
+  const { data: besoinData, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['besoin-data'],
     queryFn: async () => {
       const data = await fetchAllBesoinData();
@@ -395,7 +395,16 @@ export default function BesoinsPage() {
   
   // Contenu principal de la page (tableau avec filtres et bouton d'analyse)
   const besoinsContent = (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
+      {/* Overlay de chargement pendant le fetching */}
+      {isFetching && !isLoading && (
+        <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-50 flex items-center justify-center rounded-lg">
+          <div className="bg-white p-4 rounded-lg shadow-lg">
+            <LoadingSpinner text="Chargement des données..." />
+          </div>
+        </div>
+      )}
+      
       {/* Section des filtres */}
       <SearchFilter
         searchValue={filters.recherche}
@@ -407,7 +416,7 @@ export default function BesoinsPage() {
         onRefresh={handleRefresh}
                  resultCount={filteredBesoins?.length || 0}
         resultLabel="besoin(s) trouvé(s)"
-        isLoading={isLoading}
+        isLoading={isFetching}
       />
       
       <div className="bg-white rounded-lg shadow-md p-6">
@@ -475,6 +484,12 @@ export default function BesoinsPage() {
           label: "Importer Besoins",
           onSuccess: () => handleImportSuccess()
         },
+        s3Import: {
+          show: true,
+          importFromS3Function: importBesoinsFromS3,
+          label: "",
+          onSuccess: () => handleImportSuccess()
+        },
         flush: {
           show: true,
           flushFunction: flushBesoins,
@@ -484,7 +499,7 @@ export default function BesoinsPage() {
         refresh: {
           show: true,
           onRefresh: () => handleRefresh(),
-          isLoading: isLoading
+          isLoading: isFetching
         }
       }}
       queryKey={['besoin-data']}

@@ -8,6 +8,15 @@ import { MatiereModel } from "@/model/matiere";
 
 import { API_BASE_URL, API_ENDPOINTS } from '@/config/api';
 
+// Interface pour la réponse de l'import S3
+export interface ImportS3Response {
+  message: string;
+  filename: string;
+  besoins_avant_flush: number;
+  besoins_importes: number;
+  statut: string;
+}
+
 // Fonction utilitaire pour gérer les erreurs API
 async function handleApiResponse(response: Response) {
   if (!response.ok) {
@@ -87,6 +96,34 @@ export async function flushBesoins(): Promise<void> {
     await handleApiResponse(response);
   } catch (error) {
     console.error("❌ [BESOIN-SERVICE] Erreur lors du vidage des besoins:", error);
+    throw error;
+  }
+}
+
+// Fonction pour importer des besoins depuis S3
+export async function importBesoinsFromS3(): Promise<ImportS3Response> {
+  try {
+    console.log("☁️ [BESOIN-SERVICE] Lancement de l'import depuis S3...");
+    
+    const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.BESOINS}/import_from_s3`, {
+      method: 'POST',
+      headers: { 
+        'Accept': 'application/json'
+      }
+      // Pas de body pour un POST sans données
+    });
+    
+    const data: ImportS3Response = await handleApiResponse(response);
+    
+    console.log("✅ [BESOIN-SERVICE] Import S3 réussi:");
+    console.log(`   📁 Fichier: ${data.filename}`);
+    console.log(`   📊 Besoins importés: ${data.besoins_importes}`);
+    console.log(`   🗑️ Besoins avant flush: ${data.besoins_avant_flush}`);
+    console.log(`   ✨ Message: ${data.message}`);
+    
+    return data;
+  } catch (error) {
+    console.error("❌ [BESOIN-SERVICE] Erreur lors de l'import S3:", error);
     throw error;
   }
 }

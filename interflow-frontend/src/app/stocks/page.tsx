@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchAllStockData, importStocksFromFile, flushStocks } from "@/services/stock-service";
+import { fetchAllStockData, importStocksFromFile, flushStocks, importStocksFromS3 } from "@/services/stock-service";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { ErrorMessage } from "@/components/ui/error-message";
 import { format } from "date-fns";
@@ -31,7 +31,7 @@ export default function StocksPage() {
   });
   
   // Récupérer les données de stock avec React Query
-  const { data: stockData, isLoading, error, refetch } = useQuery({
+  const { data: stockData, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['stock-data'],
     queryFn: fetchAllStockData,
     staleTime: Infinity, // Les données ne deviennent jamais obsolètes automatiquement
@@ -260,7 +260,16 @@ export default function StocksPage() {
 
   // Contenu principal de la page (tableau des stocks)
   const stocksContent = (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
+      {/* Overlay de chargement pendant le fetching */}
+      {isFetching && !isLoading && (
+        <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-50 flex items-center justify-center rounded-lg">
+          <div className="bg-white p-4 rounded-lg shadow-lg">
+            <LoadingSpinner text="Chargement des données..." />
+          </div>
+        </div>
+      )}
+      
       {/* Section des filtres */}
       <SearchFilter
         searchValue={filters.recherche}
@@ -272,7 +281,7 @@ export default function StocksPage() {
         onRefresh={handleRefresh}
         resultCount={sortedStocks?.length || 0}
         resultLabel="stock(s) trouvé(s)"
-        isLoading={isLoading}
+        isLoading={isFetching}
       />
       
       <Card>
@@ -377,6 +386,12 @@ export default function StocksPage() {
           label: "Importer Stocks",
           onSuccess: handleImportSuccess
         },
+        s3Import: {
+          show: true,
+          importFromS3Function: importStocksFromS3,
+          label: "",
+          onSuccess: handleImportSuccess
+        },
         flush: {
           show: true,
           flushFunction: flushStocks,
@@ -386,7 +401,7 @@ export default function StocksPage() {
         refresh: {
           show: true,
           onRefresh: handleRefresh,
-          isLoading: isLoading
+          isLoading: isFetching
         }
       }}
       queryKey={['stock-data']}

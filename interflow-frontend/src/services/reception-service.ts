@@ -7,6 +7,15 @@ import { ReceptionModel, Reception, TypeReception, EtatReception } from "@/model
 
 import { API_BASE_URL, API_ENDPOINTS } from '@/config/api';
 
+// Interface pour la réponse de l'import S3
+export interface ImportS3Response {
+  message: string;
+  filename: string;
+  receptions_avant_flush: number;
+  receptions_importees: number;
+  statut: string;
+}
+
 // Fonction utilitaire pour gérer les erreurs API
 async function handleApiResponse(response: Response) {
   if (!response.ok) {
@@ -184,6 +193,34 @@ export async function flushReceptions(): Promise<void> {
     await handleApiResponse(response);
   } catch (error) {
     console.error("❌ [RECEPTION-SERVICE] Erreur lors du vidage des réceptions:", error);
+    throw error;
+  }
+}
+
+// Fonction pour importer des réceptions depuis S3
+export async function importReceptionsFromS3(): Promise<ImportS3Response> {
+  try {
+    console.log("☁️ [RECEPTION-SERVICE] Lancement de l'import depuis S3...");
+    
+    const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.RECEPTIONS}/import_from_s3`, {
+      method: 'POST',
+      headers: { 
+        'Accept': 'application/json'
+      }
+      // Pas de body pour un POST sans données
+    });
+    
+    const data: ImportS3Response = await handleApiResponse(response);
+    
+    console.log("✅ [RECEPTION-SERVICE] Import S3 réussi:");
+    console.log(`   📁 Fichier: ${data.filename}`);
+    console.log(`   📊 Réceptions importées: ${data.receptions_importees}`);
+    console.log(`   🗑️ Réceptions avant flush: ${data.receptions_avant_flush}`);
+    console.log(`   ✨ Message: ${data.message}`);
+    
+    return data;
+  } catch (error) {
+    console.error("❌ [RECEPTION-SERVICE] Erreur lors de l'import S3:", error);
     throw error;
   }
 }

@@ -3,10 +3,11 @@
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Package, Truck, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 import { EtatReception, TypeReception } from "@/model/reception";
 import { ResourcePageLayout } from "@/components/layouts/resource-page-layout";
-import { importReceptionsFromFile, flushReceptions } from "@/services/reception-service";
+import { importReceptionsFromFile, flushReceptions, importReceptionsFromS3 } from "@/services/reception-service";
 import { SearchFilter, FilterConfig } from "@/components/filters";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchAllReceptionData } from "@/services/reception-service";
@@ -29,7 +30,7 @@ export default function ReceptionsPage() {
   const queryClient = useQueryClient();
 
   // Récupérer les données de réception avec React Query optimisé
-  const { data: receptions, isLoading, refetch } = useQuery({
+  const { data: receptions, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['reception-data'],
     queryFn: fetchAllReceptionData,
     staleTime: Infinity, // Les données ne deviennent jamais obsolètes automatiquement
@@ -220,7 +221,16 @@ export default function ReceptionsPage() {
 
   // Contenu principal de la page (filtres, liste et générateur de bon)
   const receptionsContent = (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
+      {/* Overlay de chargement pendant le fetching */}
+      {isFetching && !isLoading && (
+        <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-50 flex items-center justify-center rounded-lg">
+          <div className="bg-white p-4 rounded-lg shadow-lg">
+            <LoadingSpinner text="Chargement des données..." />
+          </div>
+        </div>
+      )}
+      
       {/* Section des filtres */}
       <SearchFilter
         searchValue={filters.recherche}
@@ -232,7 +242,7 @@ export default function ReceptionsPage() {
         onRefresh={handleRefresh}
         resultCount={receptionsTriees.length}
         resultLabel="réception(s) trouvée(s)"
-        isLoading={isLoading}
+        isLoading={isFetching}
       />
 
 
@@ -354,6 +364,12 @@ export default function ReceptionsPage() {
           label: "Importer Réceptions",
           onSuccess: handleImportSuccess
         },
+        s3Import: {
+          show: true,
+          importFromS3Function: importReceptionsFromS3,
+          label: "",
+          onSuccess: handleImportSuccess
+        },
         flush: {
           show: true,
           flushFunction: flushReceptions,
@@ -363,7 +379,7 @@ export default function ReceptionsPage() {
         refresh: {
           show: true,
           onRefresh: handleRefresh,
-          isLoading: isLoading
+          isLoading: isFetching
         }
       }}
       queryKey={['reception-data']}
