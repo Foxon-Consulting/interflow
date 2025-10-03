@@ -5,6 +5,9 @@ This module provides a FastAPI API for the Interflow backend system,
 including coverage analysis, data management, and business services.
 """
 
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI, HTTPException, Query, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse

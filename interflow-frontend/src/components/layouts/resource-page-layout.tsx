@@ -24,6 +24,12 @@ interface ResourcePageLayoutProps {
       onSuccess?: () => void;
       acceptedFormats?: string[];
     };
+    s3Import?: {
+      show?: boolean;
+      importFromS3Function?: () => Promise<unknown>;
+      label?: string;
+      onSuccess?: () => void;
+    };
     flush?: {
       show?: boolean;
       flushFunction?: () => Promise<void>;
@@ -70,6 +76,7 @@ export function ResourcePageLayout({
         <DataActionButtons
           add={actions?.add}
           import={actions?.import}
+          s3Import={actions?.s3Import}
           flush={actions?.flush}
           refresh={actions?.refresh}
           queryKey={queryKey}

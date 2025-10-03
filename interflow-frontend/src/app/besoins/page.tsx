@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useMemo, useCallback, useEffect } from "react";
+import { useFilterParams } from "@/hooks/use-filter-params";
 import { BarChart3 } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchAllBesoinData, flushBesoins, importBesoinsFromFile } from "@/services/besoin-service";
+import { fetchAllBesoinData, flushBesoins, importBesoinsFromFile, importBesoinsFromS3 } from "@/services/besoin-service";
 import { AnalyseService, AnalyseBesoinsResponse } from "@/services/analyse-service";
 import { BesoinModel } from "@/model/besoin";
 import { CouvertureParBesoin } from "@/model/analyse";
@@ -14,17 +15,26 @@ import { ResourcePageLayout } from "@/components/layouts/resource-page-layout";
 import { DataTable, DataRow } from "@/components/data-table";
 import { useRouter } from "next/navigation";
 import { SearchFilter, FilterConfig } from "@/components/filters";
+import { createFromNextReadableStream } from "next/dist/client/components/router-reducer/fetch-server-response";
 
-export default function AgendaTest() {
+export default function BesoinsPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   
-  // États pour les filtres
-  const [rechercheText, setRechercheText] = useState("");
-  const [filtreEtat, setFiltreEtat] = useState<string>("tous");
+  // // États pour les filtres
+  // const [rechercheText, setRechercheText] = useState("");
+  // const [filtreEtat, setFiltreEtat] = useState<string>("tous");
+
+  const { filters, updateFilter } = useFilterParams({
+    recherche: "",
+    etat: "tous",
+    sortField: "code_mp",
+    sortDirection: "asc"
+  });
+
   
   // Récupérer directement les données besoins depuis le service besoins (SANS analyse automatique)
-  const { data: besoinData, isLoading, error, refetch } = useQuery({
+  const { data: besoinData, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['besoin-data'],
     queryFn: async () => {
       const data = await fetchAllBesoinData();
@@ -172,17 +182,17 @@ export default function AgendaTest() {
     return besoinData.filter((besoin) => {
       const etatCouverture = getEtatCouverture(besoin);
       
-      const matchRecherche = rechercheText === "" || 
-        besoin.matiere.code_mp.toLowerCase().includes(rechercheText.toLowerCase()) ||
-        besoin.matiere.nom.toLowerCase().includes(rechercheText.toLowerCase()) ||
-        etatCouverture.toLowerCase().includes(rechercheText.toLowerCase()) ||
-        besoin.echeance.toLocaleDateString('fr-FR').includes(rechercheText.toLowerCase());
+      const matchRecherche = filters.recherche === "" || 
+        besoin.matiere.code_mp.toLowerCase().includes(filters.recherche.toLowerCase()) ||
+        besoin.matiere.nom.toLowerCase().includes(filters.recherche.toLowerCase()) ||
+        etatCouverture.toLowerCase().includes(filters.recherche.toLowerCase()) ||
+        besoin.echeance.toLocaleDateString('fr-FR').includes(filters.recherche.toLowerCase());
       
-      const matchEtat = filtreEtat === "tous" || etatCouverture === filtreEtat;
+      const matchEtat = filters.etat === "tous" || etatCouverture === filters.etat;
       
       return matchRecherche && matchEtat;
     });
-  }, [besoinData, rechercheText, filtreEtat, getEtatCouverture]);
+  }, [besoinData, filters, getEtatCouverture]);
 
   // Préparer les données pour le DataTable en utilisant les besoins filtrés
   const tableData: DataRow[] = useMemo(() => {
@@ -298,6 +308,16 @@ export default function AgendaTest() {
             variant="outline"
             onClick={(e) => {
               e.stopPropagation();
+              // Sauvegarder les données du besoin dans localStorage
+              localStorage.setItem('analyses_besoin_data', JSON.stringify({
+                id: besoin.id,
+                code_mp: besoin.matiere.code_mp,
+                nom_matiere: besoin.matiere.nom,
+                quantite: besoin.quantite,
+                echeance: besoin.echeance.toISOString(),
+                etat: besoin.etat,
+                lot: besoin.lot
+              }));
               router.push(`/analyses?mp=${encodeURIComponent(besoin.matiere.code_mp)}`);
             }}
             className="flex items-center gap-1 text-xs h-6 px-2"
@@ -350,12 +370,12 @@ export default function AgendaTest() {
   }, [besoinData]);
   
   const filterValues = {
-    etat: filtreEtat
+    etat: filters.etat
   };
   
   const handleFilterChange = (filterKey: string, value: string) => {
     if (filterKey === "etat") {
-      setFiltreEtat(value);
+      updateFilter('etat', value);
     }
   };
 
@@ -386,11 +406,20 @@ export default function AgendaTest() {
   
   // Contenu principal de la page (tableau avec filtres et bouton d'analyse)
   const besoinsContent = (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
+      {/* Overlay de chargement pendant le fetching */}
+      {isFetching && !isLoading && (
+        <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-50 flex items-center justify-center rounded-lg">
+          <div className="bg-white p-4 rounded-lg shadow-lg">
+            <LoadingSpinner text="Chargement des données..." />
+          </div>
+        </div>
+      )}
+      
       {/* Section des filtres */}
       <SearchFilter
-        searchValue={rechercheText}
-        onSearchChange={setRechercheText}
+        searchValue={filters.recherche}
+        onSearchChange={(value) => updateFilter('recherche', value)}
         searchPlaceholder="Rechercher un besoin..."
         filters={filterConfigs}
         filterValues={filterValues}
@@ -398,14 +427,13 @@ export default function AgendaTest() {
         onRefresh={handleRefresh}
                  resultCount={filteredBesoins?.length || 0}
         resultLabel="besoin(s) trouvé(s)"
-        isLoading={isLoading}
+        isLoading={isFetching}
       />
       
       <div className="bg-white rounded-lg shadow-md p-6">
         <div className="flex justify-between items-center mb-4">
           <div>
             <h2 className="text-xl font-semibold">Liste des Besoins Opérationnels</h2>
-            <p className="text-gray-600">Vue détaillée des besoins - cliquez sur &quot;Analyse&quot; pour calculer la couverture</p>
             <p className="text-sm text-blue-600 mt-1">💡 Cliquez sur les en-têtes de colonnes pour trier (Code MP, Matière, Quantité, Échéance, État)</p>
           </div>
           
@@ -466,6 +494,12 @@ export default function AgendaTest() {
           label: "Importer Besoins",
           onSuccess: () => handleImportSuccess()
         },
+        s3Import: {
+          show: true,
+          importFromS3Function: importBesoinsFromS3,
+          label: "",
+          onSuccess: () => handleImportSuccess()
+        },
         flush: {
           show: true,
           flushFunction: flushBesoins,
@@ -475,7 +509,7 @@ export default function AgendaTest() {
         refresh: {
           show: true,
           onRefresh: () => handleRefresh(),
-          isLoading: isLoading
+          isLoading: isFetching
         }
       }}
       queryKey={['besoin-data']}

@@ -111,28 +111,16 @@ class BesoinsRepository(BaseRepository[Besoin]):
 
     def import_from_file(self, file_path: str) -> None:
         """
-        Importe les besoins depuis un fichier CSV ou XLSX
+        Importe les besoins depuis un fichier XLSX
 
         Args:
             file_path: Chemin vers le fichier des besoins
         """
-        if file_path.endswith('.csv'):
-            from lib.decoders.besoins.csv import CSVBesoinsDecoder
-            super().import_from_file(file_path, CSVBesoinsDecoder)
-        elif file_path.endswith('.xlsx'):
+        if file_path.endswith('.xlsx'):
             from lib.decoders.besoins.xlsx import XLSXBesoinsDecoder
             super().import_from_file(file_path, XLSXBesoinsDecoder)
         else:
-            raise ValueError("Le fichier doit être un fichier CSV ou XLSX")
-
-    def import_from_csv(self, csv_path: str = "data/besoins.csv") -> None:
-        """
-        Importe les besoins depuis un fichier CSV (compatibilité)
-
-        Args:
-            csv_path: Chemin vers le fichier CSV des besoins
-        """
-        self.import_from_file(csv_path)
+            raise ValueError("Le fichier doit être un fichier XLSX")
 
     def filter_besoins_advanced(self,
                                etat: Optional[Etat] = None,

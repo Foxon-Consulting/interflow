@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchAllStockData, importStocksFromFile, flushStocks } from "@/services/stock-service";
+import { fetchAllStockData, importStocksFromFile, flushStocks, importStocksFromS3 } from "@/services/stock-service";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { ErrorMessage } from "@/components/ui/error-message";
 import { format } from "date-fns";
@@ -14,23 +14,24 @@ import { useRouter } from "next/navigation";
 import { BarChart3, Truck, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Stock } from "@/model/stock";
 import { SearchFilter, FilterConfig } from "@/components/filters";
+import { useFilterParams } from "@/hooks/use-filter-params";
 
 export default function StocksPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   
-  // États pour les filtres
-  const [rechercheText, setRechercheText] = useState("");
-  const [filtreMagasin, setFiltreMagasin] = useState<string>("tous");
-  const [filtreDivision, setFiltreDivision] = useState<string>("tous");
-  const [filtreStatutLot, setFiltreStatutLot] = useState<string>("tous");
-  
-  // États pour le tri
-  const [sortField, setSortField] = useState<string>('code_mp');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  // Utiliser le hook pour gérer les filtres via URL
+  const { filters, updateFilter } = useFilterParams({
+    recherche: "",
+    magasin: "tous",
+    division: "tous",
+    statutLot: "tous",
+    sortField: "code_mp",
+    sortDirection: "asc"
+  });
   
   // Récupérer les données de stock avec React Query
-  const { data: stockData, isLoading, error, refetch } = useQuery({
+  const { data: stockData, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['stock-data'],
     queryFn: fetchAllStockData,
     staleTime: Infinity, // Les données ne deviennent jamais obsolètes automatiquement
@@ -83,19 +84,13 @@ export default function StocksPage() {
   }, [stockData]);
   
   const filterValues = {
-    magasin: filtreMagasin,
-    division: filtreDivision,
-    statutLot: filtreStatutLot
+    magasin: filters.magasin,
+    division: filters.division,
+    statutLot: filters.statutLot
   };
   
   const handleFilterChange = (filterKey: string, value: string) => {
-    if (filterKey === "magasin") {
-      setFiltreMagasin(value);
-    } else if (filterKey === "division") {
-      setFiltreDivision(value);
-    } else if (filterKey === "statutLot") {
-      setFiltreStatutLot(value);
-    }
+    updateFilter(filterKey as keyof typeof filters, value);
   };
 
   // Fonction pour naviguer vers la page Analyses avec le code MP
@@ -111,20 +106,20 @@ export default function StocksPage() {
 
   // Fonction pour gérer le tri
   const handleSort = (field: string) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    if (filters.sortField === field) {
+      updateFilter('sortDirection', filters.sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
-      setSortField(field);
-      setSortDirection('asc');
+      updateFilter('sortField', field);
+      updateFilter('sortDirection', 'asc');
     }
   };
 
   // Fonction pour obtenir l'icône de tri
   const getSortIcon = (field: string) => {
-    if (sortField !== field) {
+    if (filters.sortField !== field) {
       return <ArrowUpDown className="h-4 w-4" />;
     }
-    return sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />;
+    return filters.sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />;
   };
 
   // Fonction pour filtrer et trier les stocks
@@ -133,18 +128,18 @@ export default function StocksPage() {
     
     // Filtrage des stocks
     const stocksFiltres = stockData.filter((stock) => {
-      const matchRecherche = rechercheText === "" || 
-        (stock.matiere?.nom && stock.matiere.nom.toLowerCase().includes(rechercheText.toLowerCase())) ||
-        (stock.matiere?.code_mp && stock.matiere.code_mp.toLowerCase().includes(rechercheText.toLowerCase())) ||
-        stock.libelle_article.toLowerCase().includes(rechercheText.toLowerCase()) ||
-        stock.magasin.toLowerCase().includes(rechercheText.toLowerCase()) ||
-        stock.division.toLowerCase().includes(rechercheText.toLowerCase()) ||
-        (stock.lot_fournisseur && stock.lot_fournisseur.toLowerCase().includes(rechercheText.toLowerCase())) ||
-        stock.emplacement.toLowerCase().includes(rechercheText.toLowerCase());
+      const matchRecherche = filters.recherche === "" || 
+        (stock.matiere?.nom && stock.matiere.nom.toLowerCase().includes(filters.recherche.toLowerCase())) ||
+        (stock.matiere?.code_mp && stock.matiere.code_mp.toLowerCase().includes(filters.recherche.toLowerCase())) ||
+        stock.libelle_article.toLowerCase().includes(filters.recherche.toLowerCase()) ||
+        stock.magasin.toLowerCase().includes(filters.recherche.toLowerCase()) ||
+        stock.division.toLowerCase().includes(filters.recherche.toLowerCase()) ||
+        (stock.lot_fournisseur && stock.lot_fournisseur.toLowerCase().includes(filters.recherche.toLowerCase())) ||
+        stock.emplacement.toLowerCase().includes(filters.recherche.toLowerCase());
       
-      const matchMagasin = filtreMagasin === "tous" || stock.magasin === filtreMagasin;
-      const matchDivision = filtreDivision === "tous" || stock.division === filtreDivision;
-      const matchStatutLot = filtreStatutLot === "tous" || stock.statut_lot === filtreStatutLot;
+      const matchMagasin = filters.magasin === "tous" || stock.magasin === filters.magasin;
+      const matchDivision = filters.division === "tous" || stock.division === filters.division;
+      const matchStatutLot = filters.statutLot === "tous" || stock.statut_lot === filters.statutLot;
       
       return matchRecherche && matchMagasin && matchDivision && matchStatutLot;
     });
@@ -154,7 +149,7 @@ export default function StocksPage() {
       let aValue: string | number | boolean | Date | null | undefined;
       let bValue: string | number | boolean | Date | null | undefined;
       
-      switch (sortField) {
+      switch (filters.sortField) {
         case 'code_mp':
           aValue = a.matiere?.code_mp || '';
           bValue = b.matiere?.code_mp || '';
@@ -197,14 +192,14 @@ export default function StocksPage() {
       
       // Gérer les valeurs null/undefined
       if (aValue == null && bValue == null) return 0;
-      if (aValue == null) return sortDirection === 'asc' ? -1 : 1;
-      if (bValue == null) return sortDirection === 'asc' ? 1 : -1;
+      if (aValue == null) return filters.sortDirection === 'asc' ? -1 : 1;
+      if (bValue == null) return filters.sortDirection === 'asc' ? 1 : -1;
       
-      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
-      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+      if (aValue < bValue) return filters.sortDirection === 'asc' ? -1 : 1;
+      if (aValue > bValue) return filters.sortDirection === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [stockData, sortField, sortDirection, rechercheText, filtreMagasin, filtreDivision, filtreStatutLot]);
+  }, [stockData, filters]);
 
   // Composant pour les headers triables
   const SortableHeader = ({ field, children }: { field: string; children: React.ReactNode }) => (
@@ -265,11 +260,20 @@ export default function StocksPage() {
 
   // Contenu principal de la page (tableau des stocks)
   const stocksContent = (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
+      {/* Overlay de chargement pendant le fetching */}
+      {isFetching && !isLoading && (
+        <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-50 flex items-center justify-center rounded-lg">
+          <div className="bg-white p-4 rounded-lg shadow-lg">
+            <LoadingSpinner text="Chargement des données..." />
+          </div>
+        </div>
+      )}
+      
       {/* Section des filtres */}
       <SearchFilter
-        searchValue={rechercheText}
-        onSearchChange={setRechercheText}
+        searchValue={filters.recherche}
+        onSearchChange={(value) => updateFilter('recherche', value)}
         searchPlaceholder="Rechercher un stock..."
         filters={filterConfigs}
         filterValues={filterValues}
@@ -277,12 +281,12 @@ export default function StocksPage() {
         onRefresh={handleRefresh}
         resultCount={sortedStocks?.length || 0}
         resultLabel="stock(s) trouvé(s)"
-        isLoading={isLoading}
+        isLoading={isFetching}
       />
       
       <Card>
         <CardHeader>
-          <CardTitle>Stocks INCONNUs</CardTitle>
+          <CardTitle>Stocks</CardTitle>
           <CardDescription>Stocks internes et externes</CardDescription>
         </CardHeader>
         <CardContent>
@@ -312,8 +316,8 @@ export default function StocksPage() {
                     <td className="border border-gray-200 px-2 py-1 text-sm">
                       {stock.lot_fournisseur && stock.lot_fournisseur !== '0' && stock.lot_fournisseur !== 'NaN' && stock.lot_fournisseur !== 'nan' ? stock.lot_fournisseur : 'N/A'}
                     </td>
-                    <td className="border border-gray-200 px-2 py-1 text-right text-sm">
-                      {stock.quantite} {stock.udm}
+                    <td className="border border-gray-200 px-2 py-1 text-sm">
+                      {stock.quantite}
                     </td>
                     <td className="border border-gray-200 px-2 py-1">
                       <span className={`px-1 py-0.5 rounded text-xs ${
@@ -382,6 +386,12 @@ export default function StocksPage() {
           label: "Importer Stocks",
           onSuccess: handleImportSuccess
         },
+        s3Import: {
+          show: true,
+          importFromS3Function: importStocksFromS3,
+          label: "",
+          onSuccess: handleImportSuccess
+        },
         flush: {
           show: true,
           flushFunction: flushStocks,
@@ -391,7 +401,7 @@ export default function StocksPage() {
         refresh: {
           show: true,
           onRefresh: handleRefresh,
-          isLoading: isLoading
+          isLoading: isFetching
         }
       }}
       queryKey={['stock-data']}

@@ -3,13 +3,15 @@
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Package, Truck, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 import { EtatReception, TypeReception } from "@/model/reception";
 import { ResourcePageLayout } from "@/components/layouts/resource-page-layout";
-import { importReceptionsFromFile, flushReceptions } from "@/services/reception-service";
+import { importReceptionsFromFile, flushReceptions, importReceptionsFromS3 } from "@/services/reception-service";
 import { SearchFilter, FilterConfig } from "@/components/filters";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchAllReceptionData } from "@/services/reception-service";
+import { useFilterParams } from "@/hooks/use-filter-params";
 
 
 const getTypeIcon = (type: TypeReception) => {
@@ -28,7 +30,7 @@ export default function ReceptionsPage() {
   const queryClient = useQueryClient();
 
   // Récupérer les données de réception avec React Query optimisé
-  const { data: receptions, isLoading, refetch } = useQuery({
+  const { data: receptions, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['reception-data'],
     queryFn: fetchAllReceptionData,
     staleTime: Infinity, // Les données ne deviennent jamais obsolètes automatiquement
@@ -53,14 +55,14 @@ export default function ReceptionsPage() {
     await handleRefresh();
   };
   
-  // États pour les filtres
-  const [rechercheText, setRechercheText] = useState("");
-  const [filtreType, setFiltreType] = useState<TypeReception | "tous">("tous");
-  const [filtreEtat, setFiltreEtat] = useState<EtatReception | "tous">("tous");
-  
-  // États pour le tri
-  const [sortField, setSortField] = useState<string>('date_reception');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  // Utiliser le hook pour gérer les filtres via URL
+  const { filters, updateFilter } = useFilterParams({
+    recherche: "",
+    type: "tous",
+    etat: "tous",
+    sortField: "date_reception",
+    sortDirection: "desc"
+  });
   
   // Configuration des filtres
   const filterConfigs: FilterConfig[] = [
@@ -86,34 +88,30 @@ export default function ReceptionsPage() {
   ];
   
   const filterValues = {
-    type: filtreType,
-    etat: filtreEtat
+    type: filters.type,
+    etat: filters.etat
   };
   
   const handleFilterChange = (filterKey: string, value: string) => {
-    if (filterKey === "type") {
-      setFiltreType(value as TypeReception | "tous");
-    } else if (filterKey === "etat") {
-      setFiltreEtat(value as EtatReception | "tous");
-    }
+    updateFilter(filterKey as keyof typeof filters, value);
   };
 
   // Fonction pour gérer le tri
   const handleSort = (field: string) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    if (filters.sortField === field) {
+      updateFilter('sortDirection', filters.sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
-      setSortField(field);
-      setSortDirection('asc');
+      updateFilter('sortField', field);
+      updateFilter('sortDirection', 'asc');
     }
   };
 
   // Fonction pour obtenir l'icône de tri
   const getSortIcon = (field: string) => {
-    if (sortField !== field) {
+    if (filters.sortField !== field) {
       return <ArrowUpDown className="h-4 w-4" />;
     }
-    return sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />;
+    return filters.sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />;
   };
 
   // Composant pour les headers triables
@@ -135,15 +133,15 @@ export default function ReceptionsPage() {
     
     // Filtrage des réceptions
     const receptionsFiltrees = receptions.filter((reception) => {
-      const matchRecherche = rechercheText === "" || 
-        reception.matiere.nom.toLowerCase().includes(rechercheText.toLowerCase()) ||
-        reception.matiere.code_mp.toLowerCase().includes(rechercheText.toLowerCase()) ||
-        reception.lot.toLowerCase().includes(rechercheText.toLowerCase()) ||
-        (reception.fournisseur && reception.fournisseur.toLowerCase().includes(rechercheText.toLowerCase())) ||
-        (reception.ordre && reception.ordre.toLowerCase().includes(rechercheText.toLowerCase()));
+      const matchRecherche = filters.recherche === "" || 
+        reception.matiere.nom.toLowerCase().includes(filters.recherche.toLowerCase()) ||
+        reception.matiere.code_mp.toLowerCase().includes(filters.recherche.toLowerCase()) ||
+        reception.lot.toLowerCase().includes(filters.recherche.toLowerCase()) ||
+        (reception.fournisseur && reception.fournisseur.toLowerCase().includes(filters.recherche.toLowerCase())) ||
+        (reception.ordre && reception.ordre.toLowerCase().includes(filters.recherche.toLowerCase()));
       
-      const matchType = filtreType === "tous" || reception.type === filtreType;
-      const matchEtat = filtreEtat === "tous" || reception.etat === filtreEtat;
+      const matchType = filters.type === "tous" || reception.type === filters.type;
+      const matchEtat = filters.etat === "tous" || reception.etat === filters.etat;
       
       return matchRecherche && matchType && matchEtat;
     });
@@ -153,7 +151,7 @@ export default function ReceptionsPage() {
       let aValue: string | number | boolean | Date | null | undefined;
       let bValue: string | number | boolean | Date | null | undefined;
       
-      switch (sortField) {
+      switch (filters.sortField) {
         case 'date_reception':
           aValue = a.date_reception ? new Date(a.date_reception) : null;
           bValue = b.date_reception ? new Date(b.date_reception) : null;
@@ -197,14 +195,14 @@ export default function ReceptionsPage() {
       
       // Gérer les valeurs null/undefined
       if (aValue == null && bValue == null) return 0;
-      if (aValue == null) return sortDirection === 'asc' ? -1 : 1;
-      if (bValue == null) return sortDirection === 'asc' ? 1 : -1;
+      if (aValue == null) return filters.sortDirection === 'asc' ? -1 : 1;
+      if (bValue == null) return filters.sortDirection === 'asc' ? 1 : -1;
       
-      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
-      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+      if (aValue < bValue) return filters.sortDirection === 'asc' ? -1 : 1;
+      if (aValue > bValue) return filters.sortDirection === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [receptions, sortField, sortDirection, rechercheText, filtreType, filtreEtat]);
+  }, [receptions, filters]);
 
 
 
@@ -223,11 +221,20 @@ export default function ReceptionsPage() {
 
   // Contenu principal de la page (filtres, liste et générateur de bon)
   const receptionsContent = (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
+      {/* Overlay de chargement pendant le fetching */}
+      {isFetching && !isLoading && (
+        <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-50 flex items-center justify-center rounded-lg">
+          <div className="bg-white p-4 rounded-lg shadow-lg">
+            <LoadingSpinner text="Chargement des données..." />
+          </div>
+        </div>
+      )}
+      
       {/* Section des filtres */}
       <SearchFilter
-        searchValue={rechercheText}
-        onSearchChange={setRechercheText}
+        searchValue={filters.recherche}
+        onSearchChange={(value) => updateFilter('recherche', value)}
         searchPlaceholder="Rechercher une réception..."
         filters={filterConfigs}
         filterValues={filterValues}
@@ -235,7 +242,7 @@ export default function ReceptionsPage() {
         onRefresh={handleRefresh}
         resultCount={receptionsTriees.length}
         resultLabel="réception(s) trouvée(s)"
-        isLoading={isLoading}
+        isLoading={isFetching}
       />
 
 
@@ -289,7 +296,7 @@ export default function ReceptionsPage() {
                       </td>
                       <td className="border border-gray-200 px-2 py-1 text-sm">{reception.matiere.code_mp}</td>
                       <td className="border border-gray-200 px-2 py-1 text-right text-sm">
-                        {reception.quantite} {reception.udm || "unité(s)"}
+                        {reception.quantite}
                       </td>
                       <td className="border border-gray-200 px-2 py-1">
                         <div className="flex items-center gap-1">
@@ -357,6 +364,12 @@ export default function ReceptionsPage() {
           label: "Importer Réceptions",
           onSuccess: handleImportSuccess
         },
+        s3Import: {
+          show: true,
+          importFromS3Function: importReceptionsFromS3,
+          label: "",
+          onSuccess: handleImportSuccess
+        },
         flush: {
           show: true,
           flushFunction: flushReceptions,
@@ -366,7 +379,7 @@ export default function ReceptionsPage() {
         refresh: {
           show: true,
           onRefresh: handleRefresh,
-          isLoading: isLoading
+          isLoading: isFetching
         }
       }}
       queryKey={['reception-data']}

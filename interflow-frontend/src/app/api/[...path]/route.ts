@@ -7,14 +7,14 @@ import { proxyToBackend } from '@/lib/backend-proxy';
  */
 
 interface RouteParams {
-  params: {
+  params: Promise<{
     path: string[];
-  };
+  }>;
 }
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const { path } = params;
+    const { path } = await params;
     const { searchParams } = new URL(request.url);
     
     // Reconstruire le chemin complet
@@ -29,7 +29,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     
     return NextResponse.json(data, { status: response.status });
   } catch (error) {
-    const errorPath = `/${params.path.join('/')}`;
+    const resolvedParams = await params;
+    const errorPath = `/${resolvedParams.path.join('/')}`;
     console.error(`❌ [API-CATCH-ALL] GET ${errorPath} error:`, error);
     return NextResponse.json(
       { error: `Erreur lors de l'accès à ${errorPath}` }, 
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    const { path } = params;
+    const { path } = await params;
     const fullPath = `/${path.join('/')}`;
     const contentType = request.headers.get('content-type');
     
@@ -55,8 +56,17 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         body: formData
       });
     } else {
-      // Pour les données JSON
-      const body = await request.json();
+      // Pour les données JSON (ou body vide)
+      let body = null;
+      const text = await request.text();
+      if (text) {
+        try {
+          body = JSON.parse(text);
+        } catch {
+          // Si ce n'est pas du JSON valide, utiliser le texte brut
+          body = text;
+        }
+      }
       response = await proxyToBackend(fullPath, {
         method: 'POST',
         body
@@ -66,7 +76,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const data = await response.json();
     return NextResponse.json(data, { status: response.status });
   } catch (error) {
-    const errorPath = `/${params.path.join('/')}`;
+    const resolvedParams = await params;
+    const errorPath = `/${resolvedParams.path.join('/')}`;
     console.error(`❌ [API-CATCH-ALL] POST ${errorPath} error:`, error);
     return NextResponse.json(
       { error: `Erreur lors de la création sur ${errorPath}` }, 
@@ -77,7 +88,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
-    const { path } = params;
+    const { path } = await params;
     const fullPath = `/${path.join('/')}`;
     const body = await request.json();
     
@@ -91,7 +102,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const data = await response.json();
     return NextResponse.json(data, { status: response.status });
   } catch (error) {
-    const errorPath = `/${params.path.join('/')}`;
+    const resolvedParams = await params;
+    const errorPath = `/${resolvedParams.path.join('/')}`;
     console.error(`❌ [API-CATCH-ALL] PUT ${errorPath} error:`, error);
     return NextResponse.json(
       { error: `Erreur lors de la mise à jour sur ${errorPath}` }, 
@@ -102,7 +114,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
-    const { path } = params;
+    const { path } = await params;
     const fullPath = `/${path.join('/')}`;
     
     console.log(`🔄 [API-CATCH-ALL] DELETE ${fullPath}`);
@@ -114,7 +126,8 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const data = await response.json();
     return NextResponse.json(data, { status: response.status });
   } catch (error) {
-    const errorPath = `/${params.path.join('/')}`;
+    const resolvedParams = await params;
+    const errorPath = `/${resolvedParams.path.join('/')}`;
     console.error(`❌ [API-CATCH-ALL] DELETE ${errorPath} error:`, error);
     return NextResponse.json(
       { error: `Erreur lors de la suppression sur ${errorPath}` }, 

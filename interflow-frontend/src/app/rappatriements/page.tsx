@@ -8,11 +8,14 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { ErrorMessage } from "@/components/ui/error-message";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Truck, Package, Calendar, MapPin, User, TestTube } from "lucide-react";
-import { TypeEmballage, ProduitRappatriement, Rappatriement } from "@/model/rappatriement";
+import { Truck, Package, Calendar, MapPin, User, TestTube, FileDown } from "lucide-react";
+import { ProduitRappatriement, Rappatriement } from "@/model/rappatriement";
 import { ResourcePageLayout } from "@/components/layouts/resource-page-layout";
+import { Button } from "@/components/ui/button";
 import { SearchFilter, FilterConfig } from "@/components/filters";
 import { fetchAllRappatriementData, importRappatriementsFromFile, flushRappatriements } from "@/services/rappatriement-service";
+import { RappatriementExportService } from "@/services/rappatriement-export-service";
+import { useRouter } from "next/navigation";
 
 // Fonction utilitaire pour calculer le poids total d'un rapatriement
 const calculerPoidsTotal = (produits: ProduitRappatriement[]) => {
@@ -30,6 +33,7 @@ const calculerContenantsTotal = (produits: ProduitRappatriement[]) => {
 };
 
 export default function RappatriementsPage() {
+  const router = useRouter();
   const queryClient = useQueryClient();
   
   // Récupérer les données de rapatriement avec React Query
@@ -58,26 +62,58 @@ export default function RappatriementsPage() {
     await handleRefresh();
   };
   
+  // Fonction d'export d'un rappatriement en XLSX
+  const handleExport = async (rappatriement: Rappatriement) => {
+    try {
+      console.log("📄 [RAPPATRIEMENTS] Export du rappatriement:", rappatriement.numero_transfert);
+      await RappatriementExportService.exportToXLSX(rappatriement);
+    } catch (error) {
+      console.error("❌ [RAPPATRIEMENTS] Erreur lors de l'export:", error);
+      alert("Erreur lors de l'export du fichier. Voir la console pour plus de détails.");
+    }
+  };
 
   
   // États pour les filtres
   const [rechercheText, setRechercheText] = useState("");
-  const [filtreTypeEmballage, setFiltreTypeEmballage] = useState<TypeEmballage | "tous">("tous");
+  const [filtreTypeEmballage, setFiltreTypeEmballage] = useState<string>("tous");
   
-  // Configuration des filtres
-  const filterConfigs: FilterConfig[] = [
-    {
-      key: "typeEmballage",
-      label: "Type d'emballage",
-      options: [
-        { value: TypeEmballage.CARTON, label: "Carton" },
-        { value: TypeEmballage.SAC, label: "Sac" },
-        { value: TypeEmballage.CONTENEUR, label: "Conteneur" },
-        { value: TypeEmballage.AUTRE, label: "Autre" }
-      ],
-      placeholder: "Tous les types"
+  // Créer des filtres dynamiques basés sur les données
+  const filterConfigs: FilterConfig[] = useMemo(() => {
+    if (!rapatriementData || !Array.isArray(rapatriementData)) {
+      return [];
     }
-  ];
+    
+    // Extraire tous les types d'emballage uniques
+    const typesEmballageSet = new Set<string>();
+    rapatriementData.forEach((rappatriement: Rappatriement) => {
+      rappatriement.produits.forEach((produit: ProduitRappatriement) => {
+        if (produit.type_emballage && produit.type_emballage.trim()) {
+          typesEmballageSet.add(produit.type_emballage.trim());
+        }
+      });
+    });
+    
+    // Convertir en tableau et trier
+    const typesEmballage = Array.from(typesEmballageSet).sort();
+    
+    // Capitaliser la première lettre pour l'affichage
+    const capitalizeFirst = (str: string) => {
+      return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+    };
+    
+    return [
+      {
+        key: "typeEmballage",
+        label: "Type d'emballage",
+        options: typesEmballage.map(type => ({
+          value: type,
+          label: capitalizeFirst(type)
+        })),
+        placeholder: "Tous les types"
+      }
+    ];
+  }, [rapatriementData]);
   
   const filterValues = {
     typeEmballage: filtreTypeEmballage
@@ -85,7 +121,7 @@ export default function RappatriementsPage() {
   
   const handleFilterChange = (filterKey: string, value: string) => {
     if (filterKey === "typeEmballage") {
-      setFiltreTypeEmballage(value as TypeEmballage | "tous");
+      setFiltreTypeEmballage(value);
     }
   };
 
@@ -220,13 +256,23 @@ export default function RappatriementsPage() {
                     )}
                   </CardDescription>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-center">
                   <Badge variant="outline" className="text-xs">
                     {rappatriement.produits.length} produit(s)
                   </Badge>
                   <Badge variant="secondary" className="text-xs">
                     {calculerPoidsTotal(rappatriement.produits).toFixed(1)} kg
                   </Badge>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleExport(rappatriement)}
+                    className="flex items-center gap-1 text-xs h-7 px-2"
+                    title="Exporter en XLSX"
+                  >
+                    <FileDown className="h-3.5 w-3.5" />
+                    Export
+                  </Button>
                 </div>
               </div>
             </CardHeader>
@@ -321,7 +367,7 @@ export default function RappatriementsPage() {
 
                         </div>
                         {produit.stock_solde && (
-                          <Badge variant="destructive" className="text-xs mt-2">
+                          <Badge variant="warning" className="text-xs mt-2">
                             Stock soldé
                           </Badge>
                         )}
@@ -360,6 +406,11 @@ export default function RappatriementsPage() {
     <ResourcePageLayout
       title="Gestion des Rappatriements"
       actions={{
+        add: {
+          show: true,
+          onClick: () => router.push("/rappatriements/create"),
+          label: "Nouveau Rappatriement"
+        },
         import: {
           show: true,
           importFunction: importRappatriementsFromFile,

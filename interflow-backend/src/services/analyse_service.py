@@ -16,6 +16,8 @@ from models.analyse import (
     PremierBesoinNonCouvert,
     StatistiquesMatiere
 )
+
+from services.data_service import DataService
 from repositories import BesoinsRepository, StocksRepository, ReceptionsRepository, RappatriementsRepository
 
 

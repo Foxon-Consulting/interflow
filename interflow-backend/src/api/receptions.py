@@ -2,6 +2,9 @@
 Endpoints pour la gestion des réceptions
 """
 
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import APIRouter, HTTPException, Query, UploadFile, File
 from typing import Dict, Any, Optional, List
 import logging
@@ -18,18 +21,7 @@ logger = logging.getLogger(__name__)
 # Création du router pour les réceptions
 router = APIRouter(prefix="/receptions", tags=["2. Réceptions - CRUD"])
 
-# Factory functions
-def get_storage_strategy():
-    """Factory pour créer une instance de JSONStorageStrategy"""
-    return JSONStorageStrategy()
 
-def get_receptions_repo() -> ReceptionsRepository:
-    """Factory pour créer une instance de ReceptionsRepository"""
-    return ReceptionsRepository(get_storage_strategy())
-
-def get_data_service() -> DataService:
-    """Factory pour créer une instance de DataService"""
-    return DataService()
 
 @router.get("/")
 async def get_receptions(
@@ -45,7 +37,7 @@ async def get_receptions(
         Liste des réceptions
     """
     try:
-        repo = get_receptions_repo()
+        repo = DataService().receptions_repo
         if matiere_code:
             receptions = repo.get_receptions_by_matiere(matiere_code)
         else:
@@ -64,7 +56,7 @@ async def delete_receptions() -> Dict[str, Any]:
     Supprime tous les réceptions (flush du repository)
     """
     try:
-        repo = get_receptions_repo()
+        repo = DataService().receptions_repo
         repo.flush()
         return {
             "message": "Tous les réceptions ont été supprimés avec succès",
@@ -87,7 +79,7 @@ async def get_reception_by_id(reception_id: str) -> Dict[str, Any]:
         Données de la réception
     """
     try:
-        repo = get_receptions_repo()
+        repo = DataService().receptions_repo
         reception = repo.get_by_id(reception_id)
         if not reception:
             raise HTTPException(status_code=404, detail="Réception non trouvée")
@@ -110,7 +102,7 @@ async def create_reception(reception_data: Dict[str, Any]) -> Dict[str, Any]:
         Réception créée
     """
     try:
-        repo = get_receptions_repo()
+        repo = DataService().receptions_repo
         reception = Reception.from_model_dump(reception_data)
         reception_created = repo.create(reception)
         return reception_created.model_dump()
@@ -131,7 +123,7 @@ async def update_reception(reception_id: str, reception_data: Dict[str, Any]) ->
         Réception mise à jour
     """
     try:
-        repo = get_receptions_repo()
+        repo = DataService().receptions_repo
         reception = Reception.from_model_dump(reception_data)
         reception_updated = repo.update(reception_id, reception)
         if not reception_updated:
@@ -155,7 +147,7 @@ async def delete_reception(reception_id: str) -> Dict[str, Any]:
         Confirmation de suppression
     """
     try:
-        repo = get_receptions_repo()
+        repo = DataService().receptions_repo
         success = repo.delete(reception_id)
         if not success:
             raise HTTPException(status_code=404, detail="Réception non trouvée")
@@ -178,7 +170,7 @@ async def get_receptions_by_type(type_reception: str) -> Dict[str, Any]:
         Liste des réceptions du type spécifié
     """
     try:
-        repo = get_receptions_repo()
+        repo = DataService().receptions_repo
         type_enum = TypeReception(type_reception.upper())
         receptions = repo.get_receptions_by_type(type_enum)
         return {
@@ -202,7 +194,7 @@ async def get_receptions_by_etat(etat: str) -> Dict[str, Any]:
         Liste des réceptions dans l'état spécifié
     """
     try:
-        repo = get_receptions_repo()
+        repo = DataService().receptions_repo
         etat_enum = EtatReception(etat.upper())
         receptions = repo.get_receptions_by_etat(etat_enum)
         return {
@@ -226,7 +218,7 @@ async def get_receptions_by_matiere(code_mp: str) -> Dict[str, Any]:
         Liste des réceptions pour cette matière
     """
     try:
-        repo = get_receptions_repo()
+        repo = DataService().receptions_repo
         receptions = repo.get_receptions_by_matiere(code_mp)
         return {
             "matiere_code": code_mp,
@@ -249,7 +241,7 @@ async def generer_bon_reception(reception_ids: List[str]) -> Dict[str, Any]:
         Bon de réception généré
     """
     try:
-        repo = get_receptions_repo()
+        repo = DataService().receptions_repo
         # Récupérer les réceptions
         receptions = []
         for reception_id in reception_ids:
@@ -311,8 +303,7 @@ async def import_receptions(file: UploadFile = File(...)) -> Dict[str, Any]:
 
         try:
             # Appeler le service pour l'import
-            data_service = get_data_service()
-            return data_service.import_receptions(file_path=temp_file_path, filename=file.filename)
+            return DataService().import_receptions(file_path=temp_file_path, filename=file.filename)
         finally:
             # Nettoyer le fichier temporaire
             if os.path.exists(temp_file_path):
@@ -320,6 +311,18 @@ async def import_receptions(file: UploadFile = File(...)) -> Dict[str, Any]:
 
     except HTTPException:
         raise
+    except Exception as e:
+        logger.error(f"Erreur lors de l'import des réceptions: {str(e)}")
+        raise HTTPException(status_code=500, detail="Erreur interne du serveur")
+
+@router.post("/import_from_s3")
+async def import_receptions_from_s3() -> Dict[str, Any]:
+    """
+    Importe les réceptions depuis un fichier CSV d'un bucket S3 et flush d'abord le repository
+    """
+    try:
+        data_service = DataService()
+        return data_service.import_receptions_from_s3()
     except Exception as e:
         logger.error(f"Erreur lors de l'import des réceptions: {str(e)}")
         raise HTTPException(status_code=500, detail="Erreur interne du serveur")

@@ -1,17 +1,10 @@
-export enum TypeEmballage {
-  CARTON = "carton",
-  SAC = "sac",
-  CONTENEUR = "conteneur",
-  AUTRE = "autre"
-}
-
 export interface ProduitRappatriement {
   prelevement: boolean;
   code_prdt: string;
   designation_prdt: string;
   lot: string;
   poids_net: number;
-  type_emballage: TypeEmballage;
+  type_emballage: string;
   stock_solde: boolean;
   nb_contenants: number;
   nb_palettes: number;
@@ -27,7 +20,7 @@ export class ProduitRappatriementModel implements ProduitRappatriement {
   designation_prdt: string;
   lot: string;
   poids_net: number;
-  type_emballage: TypeEmballage;
+  type_emballage: string;
   stock_solde: boolean;
   nb_contenants: number;
   nb_palettes: number;
@@ -42,7 +35,7 @@ export class ProduitRappatriementModel implements ProduitRappatriement {
     this.designation_prdt = data.designation_prdt || "";
     this.lot = data.lot || "";
     this.poids_net = data.poids_net || 0;
-    this.type_emballage = data.type_emballage || TypeEmballage.AUTRE;
+    this.type_emballage = data.type_emballage || "";
     this.stock_solde = data.stock_solde || false;
     this.nb_contenants = data.nb_contenants || 0;
     this.nb_palettes = data.nb_palettes || 0;
@@ -53,35 +46,7 @@ export class ProduitRappatriementModel implements ProduitRappatriement {
   }
 
   static fromData(data: Record<string, unknown>): ProduitRappatriementModel {
-    const processedData = { ...data };
-    
-    // Gestion du type d'emballage
-    if (processedData.type_emballage && typeof processedData.type_emballage === 'string') {
-      let typeEmballageStr = processedData.type_emballage;
-      
-      // Si c'est de la forme 'TypeEmballage.CARTON', extraire juste 'CARTON'
-      if (typeEmballageStr.startsWith('TypeEmballage.')) {
-        typeEmballageStr = typeEmballageStr.replace('TypeEmballage.', '');
-      }
-      
-      try {
-        // Essayer avec le nom (ex: 'CARTON')
-        const enumKey = typeEmballageStr.toUpperCase() as keyof typeof TypeEmballage;
-        if (enumKey in TypeEmballage) {
-          processedData.type_emballage = TypeEmballage[enumKey];
-        } else {
-          // Essayer avec la valeur (ex: 'carton')
-          const enumValue = Object.values(TypeEmballage).find(
-            value => value === typeEmballageStr.toLowerCase()
-          );
-          processedData.type_emballage = enumValue || TypeEmballage.AUTRE;
-        }
-      } catch {
-        processedData.type_emballage = TypeEmballage.AUTRE;
-      }
-    }
-    
-    return new ProduitRappatriementModel(processedData);
+    return new ProduitRappatriementModel(data);
   }
 
   toData(): Record<string, unknown> {

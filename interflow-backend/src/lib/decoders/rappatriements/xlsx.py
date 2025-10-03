@@ -5,7 +5,7 @@ from typing import List, Union, Dict, Optional
 from pathlib import Path
 import pandas as pd
 import logging
-from models.rappatriement import Rappatriement, ProduitRappatriement, TypeEmballage
+from models.rappatriement import Rappatriement, ProduitRappatriement
 from datetime import datetime
 from lib.decoders.decoder import Decoder
 

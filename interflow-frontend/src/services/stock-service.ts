@@ -7,6 +7,15 @@ import { StockModel, Stock } from "@/model/stock";
 
 import { API_BASE_URL, API_ENDPOINTS } from '@/config/api';
 
+// Interface pour la réponse de l'import S3
+export interface ImportS3Response {
+  message: string;
+  filename: string;
+  stocks_avant_flush: number;
+  stocks_importes: number;
+  statut: string;
+}
+
 // Fonction utilitaire pour gérer les erreurs API
 async function handleApiResponse(response: Response) {
   if (!response.ok) {
@@ -220,6 +229,34 @@ export async function flushStocks(): Promise<void> {
     await handleApiResponse(response);
   } catch (error) {
     console.error("❌ [STOCK-SERVICE] Erreur lors du vidage des stocks:", error);
+    throw error;
+  }
+}
+
+// Fonction pour importer des stocks depuis S3
+export async function importStocksFromS3(): Promise<ImportS3Response> {
+  try {
+    console.log("☁️ [STOCK-SERVICE] Lancement de l'import depuis S3...");
+    
+    const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.STOCKS}/import_from_s3`, {
+      method: 'POST',
+      headers: { 
+        'Accept': 'application/json'
+      }
+      // Pas de body pour un POST sans données
+    });
+    
+    const data: ImportS3Response = await handleApiResponse(response);
+    
+    console.log("✅ [STOCK-SERVICE] Import S3 réussi:");
+    console.log(`   📁 Fichier: ${data.filename}`);
+    console.log(`   📊 Stocks importés: ${data.stocks_importes}`);
+    console.log(`   🗑️ Stocks avant flush: ${data.stocks_avant_flush}`);
+    console.log(`   ✨ Message: ${data.message}`);
+    
+    return data;
+  } catch (error) {
+    console.error("❌ [STOCK-SERVICE] Erreur lors de l'import S3:", error);
     throw error;
   }
 }

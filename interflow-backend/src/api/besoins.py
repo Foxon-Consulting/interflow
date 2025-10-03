@@ -2,6 +2,9 @@
 Endpoints pour la gestion des besoins
 """
 
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import APIRouter, HTTPException, Query, UploadFile, File
 from typing import Dict, Any, Optional
 import logging
@@ -18,19 +21,6 @@ logger = logging.getLogger(__name__)
 # Création du router pour les besoins
 router = APIRouter(prefix="/besoins", tags=["1. Besoins - CRUD"])
 
-# Factory functions
-def get_storage_strategy():
-    """Factory pour créer une instance de JSONStorageStrategy"""
-    return JSONStorageStrategy()
-
-def get_besoins_repo() -> BesoinsRepository:
-    """Factory pour créer une instance de BesoinsRepository"""
-    return BesoinsRepository(get_storage_strategy())
-
-def get_data_service() -> DataService:
-    """Factory pour créer une instance de DataService"""
-    return DataService()
-
 @router.get("/")
 async def get_besoins(
     matiere_code: Optional[str] = Query(None, description="Code de la matière pour filtrer")
@@ -45,7 +35,7 @@ async def get_besoins(
         Liste des besoins
     """
     try:
-        repo = get_besoins_repo()
+        repo = DataService().besoins_repo
         if matiere_code:
             besoins = repo.filter_besoins_advanced(code_mp=matiere_code)
         else:
@@ -64,7 +54,7 @@ async def delete_besoins() -> Dict[str, Any]:
     Supprime tous les besoins (flush du repository)
     """
     try:
-        repo = get_besoins_repo()
+        repo = DataService().besoins_repo
         repo.flush()
         return {
             "message": "Tous les besoins ont été supprimés avec succès",
@@ -87,7 +77,7 @@ async def get_besoin_by_id(besoin_id: str) -> Dict[str, Any]:
         Données du besoin
     """
     try:
-        repo = get_besoins_repo()
+        repo = DataService().besoins_repo
         besoin = repo.get_by_id(besoin_id)
         if not besoin:
             raise HTTPException(status_code=404, detail="Besoin non trouvé")
@@ -110,7 +100,7 @@ async def create_besoin(besoin_data: Dict[str, Any]) -> Dict[str, Any]:
         Besoin créé
     """
     try:
-        repo = get_besoins_repo()
+        repo = DataService().besoins_repo
         besoin = Besoin.from_model_dump(besoin_data)
         besoin_created = repo.create(besoin)
         return besoin_created.model_dump()
@@ -131,7 +121,7 @@ async def update_besoin(besoin_id: str, besoin_data: Dict[str, Any]) -> Dict[str
         Besoin mis à jour
     """
     try:
-        repo = get_besoins_repo()
+        repo = DataService().besoins_repo
         besoin = Besoin.from_model_dump(besoin_data)
         besoin_updated = repo.update(besoin_id, besoin)
         if not besoin_updated:
@@ -155,7 +145,7 @@ async def delete_besoin(besoin_id: str) -> Dict[str, Any]:
         Confirmation de suppression
     """
     try:
-        repo = get_besoins_repo()
+        repo = DataService().besoins_repo
         success = repo.delete(besoin_id)
         if not success:
             raise HTTPException(status_code=404, detail="Besoin non trouvé")
@@ -172,15 +162,15 @@ async def import_besoins(file: UploadFile = File(...)) -> Dict[str, Any]:
     Importe les besoins depuis un fichier CSV ou XLSX en flushing le repository
 
     Args:
-        file: Fichier CSV ou XLSX à importer
+        file: Fichier XLSX à importer
 
     Returns:
         Résumé de l'import
     """
     try:
         # Vérifier que le fichier est bien un CSV ou XLSX
-        if not file.filename.lower().endswith(('.csv', '.xlsx')):
-            raise HTTPException(status_code=400, detail="Le fichier doit être un fichier CSV ou XLSX")
+        if not file.filename.lower().endswith(('.xlsx')):
+            raise HTTPException(status_code=400, detail="Le fichier doit être un fichier XLSX")
 
         # Sauvegarder temporairement le fichier
         import tempfile
@@ -193,8 +183,7 @@ async def import_besoins(file: UploadFile = File(...)) -> Dict[str, Any]:
 
         try:
             # Appeler le service pour l'import
-            data_service = get_data_service()
-            return data_service.import_besoins(file_path=temp_file_path, filename=file.filename)
+            return DataService().import_besoins(file_path=temp_file_path, filename=file.filename)
         finally:
             # Nettoyer le fichier temporaire
             if os.path.exists(temp_file_path):
@@ -202,6 +191,17 @@ async def import_besoins(file: UploadFile = File(...)) -> Dict[str, Any]:
 
     except HTTPException:
         raise
+    except Exception as e:
+        logger.error(f"Erreur lors de l'import des besoins: {str(e)}")
+        raise HTTPException(status_code=500, detail="Erreur interne du serveur")
+
+@router.post("/import_from_s3")
+async def import_besoins_from_s3() -> Dict[str, Any]:
+    """
+    Importe les besoins depuis un fichier XLSX d'un bucket S3 et flush d'abord le repository
+    """
+    try:
+        return DataService().import_besoins_from_s3()
     except Exception as e:
         logger.error(f"Erreur lors de l'import des besoins: {str(e)}")
         raise HTTPException(status_code=500, detail="Erreur interne du serveur")

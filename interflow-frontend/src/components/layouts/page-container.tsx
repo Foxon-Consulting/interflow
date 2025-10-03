@@ -9,7 +9,7 @@ export function PageContainer({ children }: PageContainerProps) {
     <div className="container mx-auto px-4 py-6">
       <header className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold">Tableau de bord</h1>
+          <h1 className="text-2xl font-bold">INTERFLOW</h1>
           <p className="text-sm text-muted-foreground">
             Visualisez et analysez vos données
           </p>
@@ -39,7 +39,7 @@ export function PageContainer({ children }: PageContainerProps) {
       </main>
       
       <footer className="mt-12 py-6 border-t text-center text-sm text-muted-foreground">
-        <p>© 2025 FOXON CONSULTING. Tous droits réservés.</p>
+        <p>© MANE (EN) - Copyright 2025</p>
       </footer>
     </div>
   );

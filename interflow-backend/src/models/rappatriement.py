@@ -1,14 +1,6 @@
 from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
 from typing import List, Optional
-from enum import Enum
-
-
-class TypeEmballage(Enum):
-    CARTON = "carton"
-    SAC = "sac"
-    CONTENEUR = "conteneur"
-    AUTRE = "autre"
 
 
 class ProduitRappatriement(BaseModel):
@@ -20,7 +12,7 @@ class ProduitRappatriement(BaseModel):
     designation_prdt: str = Field(..., description="Désignation du produit")
     lot: str = Field(..., description="Numéro de lot")
     poids_net: float = Field(..., description="Poids net", ge=0)
-    type_emballage: TypeEmballage = Field(..., description="Type d'emballage")
+    type_emballage: str = Field(..., description="Type d'emballage")
     stock_solde: bool = Field(False, description="Stock soldé")
     nb_contenants: int = Field(..., description="Nombre de contenants", ge=0)
     nb_palettes: int = Field(..., description="Nombre de palettes", ge=0)
@@ -115,26 +107,25 @@ class ProduitRappatriement(BaseModel):
     def normalize_type_emballage(cls, v):
         """Normalise le type d'emballage"""
         if v is None:
-            return TypeEmballage.AUTRE
+            return ""
 
-        # Si c'est déjà un enum, le garder
-        if isinstance(v, TypeEmballage):
-            return v
-
-        # Si c'est une string, essayer de la parser
+        # Si c'est déjà une string valide, la nettoyer
         if isinstance(v, str):
-            type_lower = v.lower().strip()
+            value_str = v.strip()
+            if value_str.lower() in ['nan', 'none', 'null', '']:
+                return ""
+            return value_str
 
-            if "carton" in type_lower:
-                return TypeEmballage.CARTON
-            elif "sac" in type_lower:
-                return TypeEmballage.SAC
-            elif "conteneur" in type_lower:
-                return TypeEmballage.CONTENEUR
-            else:
-                return TypeEmballage.AUTRE
+        # Si c'est un float NaN, retourner vide
+        if isinstance(v, float) and str(v).lower() == 'nan':
+            return ""
 
-        return TypeEmballage.AUTRE
+        # Convertir en string et nettoyer
+        value_str = str(v).strip()
+        if value_str.lower() in ['nan', 'none', 'null', '']:
+            return ""
+
+        return value_str
 
     @field_validator('stock_solde', mode='before')
     @classmethod
@@ -263,23 +254,6 @@ class Rappatriement(BaseModel):
         if data.get('produits'):
             produits = []
             for produit_data in data['produits']:
-                # Gérer les différents formats de type_emballage
-                if isinstance(produit_data['type_emballage'], str):
-                    type_emballage_str = produit_data['type_emballage']
-                    # Si c'est de la forme 'TypeEmballage.CARTON', extraire juste 'CARTON'
-                    if type_emballage_str.startswith('TypeEmballage.'):
-                        type_emballage_str = type_emballage_str.replace('TypeEmballage.', '')
-                    # Si c'est déjà une valeur comme 'carton', utiliser ça
-                    # Si c'est un nom comme 'CARTON', le convertir en valeur
-                    try:
-                        produit_data['type_emballage'] = TypeEmballage[type_emballage_str.upper()]
-                    except KeyError:
-                        # Si ce n'est pas un nom d'enum, essayer avec la valeur directement
-                        try:
-                            produit_data['type_emballage'] = TypeEmballage(type_emballage_str.lower())
-                        except ValueError:
-                            # Si rien ne marche, utiliser AUTRE par défaut
-                            produit_data['type_emballage'] = TypeEmballage.AUTRE
                 produits.append(ProduitRappatriement(**produit_data))
             data['produits'] = produits
 

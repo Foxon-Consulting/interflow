@@ -6,6 +6,8 @@ from datetime import datetime
 import tempfile
 import os
 from pathlib import Path
+import boto3
+from botocore.exceptions import ClientError, NoCredentialsError
 
 from repositories import (
     BesoinsRepository,
@@ -13,51 +15,153 @@ from repositories import (
     ReceptionsRepository,
     RappatriementsRepository,
     MatieresPremieresRepository,
-    create_json_repository
+    JSONStorageStrategy,
+    SQLiteStorageStrategy,
+    S3StorageStrategy
 )
-from repositories.storage_strategies import JSONStorageStrategy
-from models.besoin import Besoin
-from models.stock import Stock
-from models.reception import Reception, EtatReception, TypeReception
-from models.rappatriement import Rappatriement
-from models.matieres import Matiere
+
 from lib.paths import ProjectPaths, get_input_file, get_reference_file
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 class DataService:
     """
     Service unifié pour la gestion des données de base
     Encapsule les opérations CRUD sur les repositories et le rechargement depuis les fichiers
+    Singleton pour garantir la cohérence des données
     """
+    
+    _instance = None
+    _initialized = False
+    
+    def __new__(cls):
+        """
+        Implémentation du pattern Singleton
+        Garantit qu'une seule instance de DataService existe
+        """
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
 
     def __init__(self):
         """
         Initialise le service avec les repositories
+        Ne s'exécute qu'une seule fois grâce au pattern Singleton
         """
+        # Éviter la réinitialisation multiple
+        if self._initialized:
+            return
+            
         self.paths = ProjectPaths()
 
-        # Créer les repositories avec la stratégie de stockage JSON
-        storage_strategy = JSONStorageStrategy()
-
+        # Créer les repositories avec la stratégie appropriée
+        storage_strategy_name = os.environ.get("STORAGE_STRATEGY", "sqlite")
+        
+        if storage_strategy_name == "sqlite":
+            storage_strategy = SQLiteStorageStrategy()
+        else:
+            storage_strategy = JSONStorageStrategy()
+        
+        # Stratégie spéciale pour les rappatriements (S3)
+        rappatriements_storage_strategy = S3StorageStrategy()
+        
         self.besoins_repo = BesoinsRepository(storage_strategy)
         self.stocks_repo = StocksRepository(storage_strategy)
         self.receptions_repo = ReceptionsRepository(storage_strategy)
-        self.rappatriements_repo = RappatriementsRepository(storage_strategy)
+        self.rappatriements_repo = RappatriementsRepository(rappatriements_storage_strategy)
         self.matieres_repo = MatieresPremieresRepository(storage_strategy)
+        
+        # Marquer comme initialisé
+        self._initialized = True
 
-        # Créer les repositories pour le rechargement (avec create_json_repository)
-        self.stock_reload_repo = create_json_repository(StocksRepository)
-        self.reception_reload_repo = create_json_repository(ReceptionsRepository)
-        self.besoins_reload_repo = create_json_repository(BesoinsRepository)
-        self.matieres_reload_repo = create_json_repository(MatieresPremieresRepository)
 
+    def _download_file_from_s3(self, s3_path: str) -> str:
+        """
+        Télécharge un fichier depuis un bucket S3
+        
+        Args:
+            s3_path: Chemin vers le fichier dans le bucket S3 (format: s3://bucket/path/to/file.xlsx)
+            
+        Returns:
+            str: Chemin local vers le fichier téléchargé
+            
+        Raises:
+            ValueError: Si le chemin S3 n'est pas valide
+            NoCredentialsError: Si les credentials AWS ne sont pas configurés
+            ClientError: Si une erreur survient lors du téléchargement
+        """
+        # Valider le format du chemin S3
+        if not s3_path.startswith('s3://'):
+            raise ValueError(f"Le chemin S3 doit commencer par 's3://', reçu: {s3_path}")
+        
+        # Parser le chemin S3
+        try:
+            # Enlever le préfixe s3://
+            path_without_prefix = s3_path[5:]
+            # Séparer le bucket et la clé
+            bucket_name, object_key = path_without_prefix.split('/', 1)
+        except ValueError:
+            raise ValueError(f"Format de chemin S3 invalide: {s3_path}")
+        
+        # Créer un fichier temporaire
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=Path(object_key).suffix)
+        temp_file_path = temp_file.name
+        temp_file.close()
+        
+        try:
+            # Créer le client S3
+            s3_client = boto3.client('s3')
+            
+            # Télécharger le fichier
+            s3_client.download_file(bucket_name, object_key, temp_file_path)
+            
+            return temp_file_path
+            
+        except NoCredentialsError:
+            # Nettoyer le fichier temporaire en cas d'erreur
+            if os.path.exists(temp_file_path):
+                os.unlink(temp_file_path)
+            raise NoCredentialsError("Les credentials AWS ne sont pas configurés. "
+                                   "Veuillez configurer AWS_ACCESS_KEY_ID et AWS_SECRET_ACCESS_KEY "
+                                   "ou utiliser un profil AWS.")
+        except ClientError as e:
+            # Nettoyer le fichier temporaire en cas d'erreur
+            if os.path.exists(temp_file_path):
+                os.unlink(temp_file_path)
+            
+            error_code = e.response['Error']['Code']
+            if error_code == 'NoSuchBucket':
+                raise ClientError(
+                    error_response={'Error': {'Code': 'NoSuchBucket', 
+                                            'Message': f"Le bucket '{bucket_name}' n'existe pas"}},
+                    operation_name='download_file'
+                )
+            elif error_code == 'NoSuchKey':
+                raise ClientError(
+                    error_response={'Error': {'Code': 'NoSuchKey', 
+                                            'Message': f"Le fichier '{object_key}' n'existe pas dans le bucket '{bucket_name}'"}},
+                    operation_name='download_file'
+                )
+            else:
+                raise ClientError(
+                    error_response={'Error': {'Code': error_code, 
+                                            'Message': f"Erreur lors du téléchargement: {e.response['Error']['Message']}"}},
+                    operation_name='download_file'
+                )
+        except Exception as e:
+            # Nettoyer le fichier temporaire en cas d'erreur
+            if os.path.exists(temp_file_path):
+                os.unlink(temp_file_path)
+            raise RuntimeError(f"Erreur inattendue lors du téléchargement: {str(e)}")
 
     def import_besoins(self, file_path: str, filename: str) -> Dict[str, Any]:
         """
-        Importe les besoins depuis un fichier CSV ou XLSX en flushing d'abord le repository
+        Importe les besoins depuis un fichier XLSX (flush d'abord le repository)
 
         Args:
-            file_path: Chemin vers le fichier temporaire
+            file_path: Chemin vers le fichier
             filename: Nom du fichier original
 
         Returns:
@@ -71,7 +175,7 @@ class DataService:
             self.besoins_repo.flush()
 
             # Importer le fichier
-            self.besoins_repo.import_from_file(file_path)
+            self.besoins_repo.import_from_file(file_path, "")
 
             # Compter les besoins après l'import
             besoins_apres = self.besoins_repo.count()
@@ -90,7 +194,50 @@ class DataService:
                 "filename": filename,
                 "statut": "error"
             }
+        
+    def import_besoins_from_s3(self) -> Dict[str, Any]:
+        """
+        Importe les besoins depuis un fichier XLSX d'un bucket S3 (flush d'abord le repository)
+        
+        Returns:
+            Dict contenant le résumé de l'import
+        """
+        s3_path = None
+        try:
+            # Compter les besoins avant le flush
+            besoins_avant = self.besoins_repo.count()
+            
+            # Flush le repository pour vider toutes les données existantes
+            self.besoins_repo.flush()
+            
+            # Récupérer le chemin S3 depuis les variables d'environnement
+            s3_path = os.environ.get("S3_BESOINS_FILE_PATH")
+            if not s3_path:
+                raise ValueError("Variable d'environnement S3_BESOINS_FILE_PATH non définie")
 
+            # Télécharger le fichier depuis le bucket S3 (responsabilité infrastructure)
+            file_path = self._download_file_from_s3(s3_path)
+
+            # Déléguer l'import au repository (responsabilité métier)
+            self.besoins_repo.import_from_file(file_path)
+
+            # Compter les besoins après l'import
+            besoins_apres = self.besoins_repo.count()
+            
+            return {
+                "message": "Import des besoins réussi",
+                "filename": s3_path,
+                "besoins_avant_flush": besoins_avant,
+                "besoins_importes": besoins_apres,
+                "statut": "success"
+            }
+        except Exception as e:
+            return {
+                "message": f"Erreur lors de l'import des besoins: {str(e)}",
+                "filename": s3_path if s3_path else "N/A",
+                "statut": "error"
+            }
+        
     def import_receptions(self, file_path: str, filename: str) -> Dict[str, Any]:
         """
         Importe les réceptions depuis un fichier CSV ou XLSX en flushing d'abord le repository
@@ -130,6 +277,46 @@ class DataService:
                 "statut": "error"
             }
 
+    def import_receptions_from_s3(self) -> Dict[str, Any]:
+        """
+        Importe les réceptions depuis un fichier CSV d'un bucket S3 (flush d'abord le repository)
+        """
+        s3_path = None
+        try:
+            # Compter les réceptions avant le flush
+            receptions_avant = self.receptions_repo.count()
+            
+            # Flush le repository pour vider toutes les données existantes
+            self.receptions_repo.flush()
+            
+            # Récupérer le chemin S3 depuis les variables d'environnement
+            s3_path = os.environ.get("S3_RECEPTIONS_FILE_PATH")
+            if not s3_path:
+                raise ValueError("Variable d'environnement S3_RECEPTIONS_FILE_PATH non définie")
+
+            # Télécharger le fichier depuis le bucket S3 (responsabilité infrastructure)
+            file_path = self._download_file_from_s3(s3_path)
+
+            # Déléguer l'import au repository (responsabilité métier)
+            self.receptions_repo.import_from_file(file_path)
+
+            # Compter les réceptions après l'import
+            receptions_apres = self.receptions_repo.count()
+
+            return {
+                "message": "Import des réceptions réussi",
+                "filename": s3_path,
+                "receptions_avant_flush": receptions_avant,
+                "receptions_importees": receptions_apres,
+                "statut": "success"
+            }
+        except Exception as e:
+            return {
+                "message": f"Erreur lors de l'import des réceptions: {str(e)}",
+                "filename": s3_path if s3_path else "N/A",
+                "statut": "error"
+            }
+        
     def import_stocks(self, file_path: str, filename: str) -> Dict[str, Any]:
         """
         Importe les stocks depuis un fichier CSV ou XLSX en flushing d'abord le repository
@@ -166,6 +353,47 @@ class DataService:
             return {
                 "message": f"Erreur lors de l'import des stocks: {str(e)}",
                 "filename": filename,
+                "statut": "error"
+            }
+        
+    def import_stocks_from_s3(self) -> Dict[str, Any]:
+        """
+        Importe les stocks depuis un fichier XLSX d'un bucket S3 (flush d'abord le repository)
+        """
+        s3_path = None
+        try:
+            # Compter les stocks avant le flush
+            stocks_avant = self.stocks_repo.count()
+            
+            # Flush le repository pour vider toutes les données existantes
+            self.stocks_repo.flush()
+            
+            # Récupérer le chemin S3 depuis les variables d'environnement
+            s3_path = os.environ.get("S3_STOCKS_FILE_PATH")
+            if not s3_path:
+                raise ValueError("Variable d'environnement S3_STOCKS_FILE_PATH non définie")
+
+            # Télécharger le fichier depuis le bucket S3 (responsabilité infrastructure)
+            file_path = self._download_file_from_s3(s3_path)
+
+            # Déléguer l'import au repository (responsabilité métier)
+            self.stocks_repo.import_from_s3(file_path)
+
+            # Compter les stocks après l'import
+            stocks_apres = self.stocks_repo.count()
+
+            return {
+                "message": "Import des stocks réussi",
+                "filename": s3_path,
+                "stocks_avant_flush": stocks_avant,
+                "stocks_importes": stocks_apres,
+                "statut": "success"
+            }
+
+        except Exception as e:
+            return {
+                "message": f"Erreur lors de l'import des stocks: {str(e)}",
+                "filename": s3_path if s3_path else "N/A",
                 "statut": "error"
             }
 
@@ -373,3 +601,50 @@ class DataService:
             Tuple: (stock_repo, reception_repo, besoins_repo, matieres_repo)
         """
         return self.stock_reload_repo, self.reception_reload_repo, self.besoins_reload_repo, self.matieres_reload_repo
+
+    def get_stocks(self, matiere_code: str = None, stock_type: str = None):
+        """
+        Récupère les stocks avec filtres optionnels
+        
+        Args:
+            matiere_code: Code de la matière pour filtrer
+            stock_type: Type de stock ('interne' ou 'externe')
+            
+        Returns:
+            Liste des stocks
+        """
+        if matiere_code:
+            return self.stocks_repo.get_stocks_by_matiere(matiere_code)
+        elif stock_type:
+            if stock_type.lower() == "interne":
+                return self.stocks_repo.get_internal_stocks()
+            elif stock_type.lower() == "externe":
+                return self.stocks_repo.get_external_stocks()
+            else:
+                raise ValueError("Type de stock invalide. Utilisez 'interne' ou 'externe'")
+        else:
+            return self.stocks_repo.get_all()
+    
+    def get_stock_by_id(self, stock_id: str):
+        """Récupère un stock par son ID"""
+        return self.stocks_repo.get_by_id(stock_id)
+    
+    def create_stock(self, stock_data: dict):
+        """Crée un nouveau stock"""
+        from models.stock import Stock
+        stock = Stock(**stock_data)
+        return self.stocks_repo.create(stock)
+    
+    def update_stock(self, stock_id: str, stock_data: dict):
+        """Met à jour un stock existant"""
+        from models.stock import Stock
+        stock = Stock(**stock_data)
+        return self.stocks_repo.update(stock_id, stock)
+    
+    def delete_stock(self, stock_id: str):
+        """Supprime un stock"""
+        return self.stocks_repo.delete(stock_id)
+    
+    def get_stocks_count(self):
+        """Retourne le nombre de stocks"""
+        return self.stocks_repo.count()

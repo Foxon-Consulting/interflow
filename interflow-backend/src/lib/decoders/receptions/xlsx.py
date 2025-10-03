@@ -52,12 +52,12 @@ class XLSXReceptionsDecoder(Decoder[Reception]):
             'numero_reception': ['Numéro Réception', 'Numero Réception', 'Réception', 'Ordre', 'N° Réception', 'N° Réception'],
             'article': ['Article', 'Code Article', 'Référence', 'Code Produit', 'Référence Article'],
             'fournisseur': ['Fournisseur', 'Fournisseur', 'Description fournisseur', 'Nom fournisseur'],
-            'montant': ['Montant', 'Prix', 'Coût', 'Valeur', 'Prix unitaire', 'Quantité d\'ordre'],
+            'montant': ['Montant', 'Prix', 'Coût', 'Valeur', 'Prix unitaire', 'Quantité d\'ordre', 'ROL : Quantity Ordered', 'Quantity Ordered', 'Quantité'],
             'statut': ['Statut', 'Statut Réception', 'Statut d\'ordre', 'État', 'Status'],
             'date_reception': ['Date Réception', 'Date de réception', 'Date création', 'Date ordre', 'Date de réception'],
             'date_livraison_souhaitee': ['Date Livraison Souhaitée', 'Date livraison', 'Date de livraison', 'Échéance'],
             'commentaire': ['Commentaire', 'Notes', 'Description', 'Remarques', 'Description Externe'],
-            'devise': ['Devise', 'Monnaie', 'Currency', 'Unité monétaire', 'UDM'],
+            'devise': ['Devise', 'Monnaie', 'Currency', 'Unité monétaire', 'UDM', 'ROL : UOM Code Qty Ordered', 'UOM Code Qty Ordered', 'UOM'],
             'type_reception': ['Type Réception', 'Type d\'ordre', 'Catégorie', 'Type']
         }
 
@@ -83,6 +83,31 @@ class XLSXReceptionsDecoder(Decoder[Reception]):
                 return str(row[col_name]).strip()
 
         return None
+
+    def _convert_quantity_to_kg(self, quantite: str, unite_mesure: str) -> float:
+        """
+        Convertit automatiquement toute quantité en kilos
+        
+        Args:
+            quantite: La quantité à convertir
+            unite_mesure: L'unité de mesure (ignorée, tout est converti en kilos)
+            
+        Returns:
+            float: La quantité en kilos
+        """
+        try:
+            qty = float(quantite)
+        except (ValueError, TypeError):
+            logger.warning(f"Quantité invalide: {quantite}, utilisation de 0")
+            return 0.0
+        
+        # Convertir automatiquement en kilos selon l'unité de mesure
+        if unite_mesure and unite_mesure.upper() == 'GRM':
+            # Grammes -> Kilos
+            return qty / 1000.0
+        else:
+            # KGM ou autre -> considérer déjà en kilos
+            return qty
 
     def decode_row(self, row: dict) -> Reception:
         """
@@ -131,19 +156,26 @@ class XLSXReceptionsDecoder(Decoder[Reception]):
             nom=commentaire or "Matière sans description"
         )
 
+        # Récupérer l'unité de mesure et la quantité
+        unite_mesure = clean_string_value(self._find_column_value(row, 'devise')) or 'KGM'
+        quantite_str = self._find_column_value(row, 'montant') or '0'
+        
+        # Convertir automatiquement la quantité en kilos
+        quantite_kg = self._convert_quantity_to_kg(quantite_str, unite_mesure)
+
         # Créer la réception (la normalisation se fait automatiquement dans le modèle Pydantic)
         try:
             reception = Reception(
                 matiere=matiere,
-                quantite=self._find_column_value(row, 'montant') or '0',  # Normalisation automatique dans Pydantic
+                quantite=quantite_kg,
                 date_creation=date_reception or datetime.now().replace(tzinfo=None),
                 # Champs optionnels
                 ordre=numero_reception,
                 fournisseur=fournisseur,
                 article=article,  # L'article sera toujours trouvé
                 libelle_article=commentaire or "Article sans description",
-                quantite_ordre=self._find_column_value(row, 'montant') or '0',  # Normalisation automatique dans Pydantic
-                udm=clean_string_value(self._find_column_value(row, 'devise')) or 'EUR',
+                quantite_ordre=quantite_kg,
+                udm='KGM',  # Toujours en kilos après conversion
                 type_ordre=clean_string_value(self._find_column_value(row, 'type_reception')) or 'MATIERE_PREMIERE',
                 statut_ordre=clean_string_value(self._find_column_value(row, 'statut')) or 'EN_ATTENTE',
                 description_externe=commentaire
