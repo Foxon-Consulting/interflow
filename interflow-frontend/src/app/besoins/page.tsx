@@ -474,7 +474,7 @@ export default function BesoinsPage() {
       title="Gestion des Besoins Opérationnels"
       actions={{
         add: {
-          show: true,
+          show: false,
           onClick: () => router.push("/besoins/create"),
           label: "Nouveau besoin"
         },
